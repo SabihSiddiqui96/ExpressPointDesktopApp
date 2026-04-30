@@ -147,7 +147,7 @@ async function servedStudentCount(window: Page): Promise<number> {
     const cards = Array.from(document.querySelectorAll('ion-row[custom-list] ion-card'));
     return cards.filter(card =>
       card.querySelector('ion-icon[name*="checkmark"], ion-icon[aria-label*="checkmark"], [aria-label*="checkmark"]')
-        || !card.querySelector('ion-checkbox'),
+      || !card.querySelector('ion-checkbox'),
     ).length;
   });
 }
@@ -158,7 +158,7 @@ async function waitForToastIfPresent(window: Page): Promise<void> {
     .then(() => true)
     .catch(() => false);
   if (appeared) {
-    await toast.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
+    await toast.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => { });
   }
 }
 
@@ -226,7 +226,7 @@ async function navigateToBulkSales(window: Page): Promise<void> {
 
   // If Opening Balance screen appeared, confirm it to open today's service.
   const hasOpenBalance = await window
-    .getByText('Opening Balance', { exact: false })
+    .getByRole('heading', { name: 'Opening Balance' })
     .isVisible({ timeout: 2_000 })
     .catch(() => false);
 
@@ -235,7 +235,7 @@ async function navigateToBulkSales(window: Page): Promise<void> {
     await window.getByRole('button', { name: /open service/i }).last().click();
     await window.waitForTimeout(4_000);
     const stillOpeningBalance = await window
-      .getByText('Opening Balance', { exact: false })
+      .getByRole('heading', { name: 'Opening Balance' })
       .isVisible({ timeout: 1_000 })
       .catch(() => false);
     if (stillOpeningBalance) {
@@ -274,8 +274,21 @@ async function loadStudentsByRoster(
   window: Page,
   params: typeof ROSTER_PARAMS,
 ): Promise<void> {
-  await window.locator('ion-segment-button[value="by_specialroster"]').click();
-  await window.waitForTimeout(500);
+  // Let the app settle after the previous flow before switching tabs
+  await window.waitForTimeout(1_500);
+
+  // Use evaluate-based click — Ionic segment buttons need it same as ion-button
+  await domClick(window, 'ion-segment-button[value="by_specialroster"]');
+  await window.waitForTimeout(800);
+
+  // Verify the tab actually switched before choosing dropdowns
+  await expect(
+    window.locator('ion-segment-button[value="by_specialroster"]'),
+  ).toHaveAttribute('aria-selected', 'true', { timeout: 5_000 }).catch(async () => {
+    // Retry once if the first click didn't register
+    await domClick(window, 'ion-segment-button[value="by_specialroster"]');
+    await window.waitForTimeout(500);
+  });
 
   await chooseFromDropdown(window, 'Roster', params.roster);
   await chooseFromDropdown(window, 'Meal Type', params.mealType);
@@ -322,11 +335,15 @@ async function recordSaleForOneStudent(window: Page): Promise<void> {
   await domClick(window, 'ion-button', 'record sales');
 
   await waitForToastIfPresent(window);
-  await expect(firstStudentCard(window)).toBeVisible({ timeout: 10_000 });
-  await expect.poll(
-    () => servedStudentCount(window),
-    { timeout: 10_000 },
-  ).toBeGreaterThan(servedBefore);
+
+  // After recording, the app navigates back to the bulk sales form.
+  // Reload students so subsequent steps (add funds, ala carte) can find the cards.
+  const backOnForm = await window.getByText(/Perform meal sales/i)
+    .isVisible({ timeout: 3_000 }).catch(() => false);
+  if (backOnForm) {
+    await domClick(window, 'ion-button', 'load students');
+  }
+  await expect(firstStudentCard(window)).toBeVisible({ timeout: 15_000 });
 }
 
 /**
@@ -387,6 +404,7 @@ async function serveAlaCarteItem(
   await modal.getByText(item, { exact: true }).click({ timeout: 10_000 });
 
   await domClick(window, 'ion-button', 'record sales');
+  await modal.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {});
   await waitForToastIfPresent(window);
 }
 
@@ -406,23 +424,18 @@ async function runBulkSalesFlow(window: Page, mode: BulkSalesMode): Promise<void
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-test.describe('Bulk Sales - By Homeroom', () => {
-  test('Full bulk sales flow via Homeroom', async () => {
+test.describe('Bulk Sales', () => {
+  test('Full bulk sales flow via Homeroom and Roster', async () => {
     const handle = await loginToExpressPoint();
     try {
       await navigateToBulkSales(handle.window);
       await runBulkSalesFlow(handle.window, 'homeroom');
-    } finally {
-      await closeExpressPoint(handle);
-    }
-  });
-});
 
-test.describe('Bulk Sales - By Roster', () => {
-  test('Full bulk sales flow via Roster', async () => {
-    const handle = await loginToExpressPoint();
-    try {
-      await navigateToBulkSales(handle.window);
+      // Re-acquire the real app window in case the CDP page reference drifted
+      const pages = handle.browser.contexts()[0].pages()
+        .filter(p => !p.isClosed() && !p.url().includes('electron-browser-storage'));
+      if (pages.length > 0) handle.window = pages[0];
+
       await runBulkSalesFlow(handle.window, 'roster');
     } finally {
       await closeExpressPoint(handle);

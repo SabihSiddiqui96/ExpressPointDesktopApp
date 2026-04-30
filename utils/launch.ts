@@ -76,7 +76,7 @@ function waitForCDP(port: number, timeoutMs: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const deadline = Date.now() + timeoutMs;
     function attempt() {
-      http.get(`http://localhost:${port}/json/version`, (res) => {
+      http.get(`http://127.0.0.1:${port}/json/version`, (res) => {
         res.resume();
         if (res.statusCode === 200) return resolve();
         schedule();
@@ -95,7 +95,7 @@ async function connectWithRetry(port: number, retries: number, delayMs: number):
   let lastErr: unknown;
   for (let i = 0; i < retries; i++) {
     try {
-      return await chromium.connectOverCDP(`http://localhost:${port}`);
+      return await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
     } catch (e) {
       lastErr = e;
       await sleep(delayMs);

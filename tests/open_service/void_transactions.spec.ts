@@ -92,25 +92,28 @@ async function login(window: Page): Promise<void> {
 
 async function openService(window: Page, handle: ExpressPointHandle): Promise<Page> {
   await waitForLoadingOverlay(window);
-  const continueService = window.locator('ion-item[detail]').filter({ hasText: /Continue Service/i }).first();
-  if (await continueService.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await continueService.click();
-    // Dismiss any confirmation dialog that may appear
-    await window.locator('ion-alert button, .alert-button')
-      .filter({ hasText: /^yes$/i })
-      .first()
-      .click({ timeout: 4_000 })
-      .catch(() => {});
-    await waitForLoadingOverlay(window);
-  } else {
-    // Fresh open — click "Open Service" from the dashboard
-    await window.locator('ion-item[detail]').filter({ hasText: /^Open Service$/i }).first()
-      .click({ timeout: 15_000 });
-    await expect(window.getByText(/Opening Balance/i).first()).toBeVisible({ timeout: 10_000 });
-    await window.getByRole('button', { name: /open service/i }).last().click();
-    await expect(window.getByText(/Opening Balance/i).first()).toBeHidden({ timeout: 20_000 });
+
+  // If a prior session is open (e.g. left over from open_service.spec), close it
+  // first so we start with no served transactions.
+  const continueVisible = await window.locator('ion-item[detail]')
+    .filter({ hasText: /Continue Service/i })
+    .first()
+    .isVisible({ timeout: 2_000 })
+    .catch(() => false);
+
+  if (continueVisible) {
+    await closeService(window);
     await waitForLoadingOverlay(window);
   }
+
+  // Open a fresh service
+  await window.locator('ion-item[detail]').filter({ hasText: /^Open Service$/i }).first()
+    .click({ timeout: 15_000 });
+  await expect(window.getByText(/Opening Balance/i).first()).toBeVisible({ timeout: 10_000 });
+  await window.getByRole('button', { name: /open service/i }).last().click();
+  await expect(window.getByText(/Opening Balance/i).first()).toBeHidden({ timeout: 20_000 });
+  await waitForLoadingOverlay(window);
+
   return getAppWindow(handle);
 }
 
@@ -120,6 +123,20 @@ async function closeService(window: Page): Promise<void> {
   const closeBtn = window.locator('ion-button').filter({ hasText: /Close Service/i }).last();
   await expect(closeBtn).toBeVisible({ timeout: 10_000 });
   await closeBtn.evaluate((el: HTMLElement) => el.click());
+
+  // Dismiss any confirmation dialogs ("Are you sure?", "closing balance is less", etc.)
+  for (let i = 0; i < 4; i++) {
+    const alert = window.locator('ion-alert');
+    const appeared = await alert.waitFor({ state: 'visible', timeout: 5_000 }).then(() => true).catch(() => false);
+    if (!appeared) break;
+    await window.locator('ion-alert button, .alert-button')
+      .filter({ hasText: /^yes$/i })
+      .first()
+      .click({ timeout: 3_000 })
+      .catch(() => {});
+    await alert.waitFor({ state: 'hidden', timeout: 8_000 }).catch(() => {});
+  }
+
   const closingDialog = window.getByText(/closing pos terminal/i).first();
   if (await closingDialog.isVisible({ timeout: 5_000 }).catch(() => false)) {
     await expect(closingDialog).toBeHidden({ timeout: 60_000 });
@@ -141,15 +158,19 @@ async function selectMealItem(window: Page): Promise<void> {
   // Wait for patron info screen
   await waitForText(window, /ID:\s*1337|Add Funds|Item Count/i);
 
-  const mealName = await window.evaluate(() => {
-    const buttons = Array.from(document.querySelectorAll<HTMLElement>('ion-button'))
-      .filter(btn => !!(btn.offsetWidth || btn.offsetHeight || btn.getClientRects().length));
-    const meal = buttons.find(btn => /^Lunch Meal/i.test((btn.innerText || '').trim()))
-      ?? buttons.find(btn => /Meal/i.test((btn.innerText || '').trim()));
-    meal?.click();
-    return meal ? (meal.innerText || '').trim() : '';
-  });
-  expect(mealName).toMatch(/Meal/i);
+  // Use Playwright's click (generates real pointer events) so Ionic registers it
+  const lunchMeal = window.locator('ion-button').filter({ hasText: /^Lunch Meal$/i }).first();
+  const anyMeal = window.locator('ion-button').filter({ hasText: /Meal/i }).first();
+  const hasLunchMeal = await lunchMeal.isVisible({ timeout: 3_000 }).catch(() => false);
+  const target = hasLunchMeal ? lunchMeal : anyMeal;
+  await expect(target).toBeVisible({ timeout: 10_000 });
+  await target.click();
+  // Dismiss "SECOND MEAL" confirmation if it appears
+  await window.locator('ion-alert button, .alert-button')
+    .filter({ hasText: /^yes$/i })
+    .first()
+    .click({ timeout: 3_000 })
+    .catch(() => {});
 }
 
 async function verifyItemCountUpdated(window: Page): Promise<void> {

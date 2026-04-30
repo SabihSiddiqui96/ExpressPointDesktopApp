@@ -113,18 +113,10 @@ async function enterServiceOrOpenFresh(window: Page, handle: ExpressPointHandle)
     .first();
 
   if (await continueService.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await continueService.click();
-    // A confirmation dialog may appear — click Yes if it shows up.
-    await window.locator('ion-alert button, .alert-button')
-      .filter({ hasText: /^yes$/i })
-      .first()
-      .click({ timeout: 4_000 })
-      .catch(() => {});
+    // A session is already open (e.g. leftover from bulk_sales test) — close it
+    // first so this test always works against a clean, freshly opened service.
+    await closeOpenService(window);
     await waitForLoadingOverlay(window);
-    await expect(
-      window.locator('input[placeholder="Enter an ID"], #pinInput input').first()
-    ).toBeVisible({ timeout: 30_000 });
-    return { window: await getAppWindow(handle), openedFresh: false };
   }
 
   await openOpeningBalance(window);
@@ -190,15 +182,22 @@ async function completeLunchTransaction(window: Page): Promise<void> {
 
   await waitForText(window, /ID:\s*1337|Add Funds|Item Count/i);
 
-  const mealClicked = await window.evaluate(() => {
-    const buttons = Array.from(document.querySelectorAll<HTMLElement>('ion-button'))
-      .filter(button => !!(button.offsetWidth || button.offsetHeight || button.getClientRects().length));
-    const meal = buttons.find(button => /^Lunch Meal/i.test((button.innerText || '').trim()))
-      ?? buttons.find(button => /Meal/i.test((button.innerText || '').trim()));
-    meal?.click();
-    return meal ? (meal.innerText || '').trim() : '';
-  });
-  expect(mealClicked).toMatch(/Meal/i);
+  // Use Playwright's click (generates real pointer events) — evaluate-based
+  // el.click() only fires a DOM click and Ionic may not register it.
+  const mealButton = window.locator('ion-button')
+    .filter({ hasText: /^Lunch Meal$/i })
+    .first();
+  const anyMeal = window.locator('ion-button').filter({ hasText: /Meal/i }).first();
+  const haslunchMeal = await mealButton.isVisible({ timeout: 3_000 }).catch(() => false);
+  const target = haslunchMeal ? mealButton : anyMeal;
+  await expect(target).toBeVisible({ timeout: 10_000 });
+  await target.click();
+  // Dismiss "SECOND MEAL" confirmation if it appears
+  await window.locator('ion-alert button, .alert-button')
+    .filter({ hasText: /^yes$/i })
+    .first()
+    .click({ timeout: 3_000 })
+    .catch(() => {});
   await waitForText(window, /Total Amount Due/i);
 
   const chargeButton = window.locator('ion-button').filter({ hasText: /Charge/i }).last();
@@ -226,23 +225,17 @@ async function closeOpenService(window: Page): Promise<void> {
   await expect(closeButton).toBeVisible({ timeout: 10_000 });
   await closeButton.evaluate((el: HTMLElement) => el.click());
 
-  const confirmClicked = await expect.poll(
-    async () => window.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll<HTMLElement>(
-        'ion-alert button, .alert-button, button',
-      ));
-      const yes = buttons.find(button =>
-        !!(button.offsetWidth || button.offsetHeight || button.getClientRects().length)
-        && /^YES$/i.test((button.innerText || button.textContent || '').trim()),
-      );
-      yes?.click();
-      return !document.body.innerText.includes('Are you sure you want to continue?') || !!yes;
-    }),
-    { timeout: 8_000 },
-  ).toBe(true).then(() => true).catch(() => false);
-
-  if (confirmClicked) {
-    await window.locator('ion-alert').waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => { });
+  // Dismiss any confirmation dialogs ("Are you sure?", "closing balance is less", etc.)
+  for (let i = 0; i < 4; i++) {
+    const alert = window.locator('ion-alert');
+    const appeared = await alert.waitFor({ state: 'visible', timeout: 5_000 }).then(() => true).catch(() => false);
+    if (!appeared) break;
+    await window.locator('ion-alert button, .alert-button')
+      .filter({ hasText: /^yes$/i })
+      .first()
+      .click({ timeout: 3_000 })
+      .catch(() => {});
+    await alert.waitFor({ state: 'hidden', timeout: 8_000 }).catch(() => {});
   }
 
   const closingDialog = window.getByText(/closing pos terminal/i).first();
