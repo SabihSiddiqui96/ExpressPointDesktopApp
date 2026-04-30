@@ -1,0 +1,13 @@
+diff --git a/node_modules/playwright-core/lib/server/chromium/crBrowser.js b/node_modules/playwright-core/lib/server/chromium/crBrowser.js
+index b2538eb..530b7f3 100644
+--- a/node_modules/playwright-core/lib/server/chromium/crBrowser.js
++++ b/node_modules/playwright-core/lib/server/chromium/crBrowser.js
+@@ -307,7 +307,7 @@ class CRBrowserContext extends import_browserContext.BrowserContext {
+         browserContextId: this._browserContextId,
+         downloadPath: this._browser.options.downloadsPath,
+         eventsEnabled: true
+-      }));
++      }).catch(() => {})); // Electron 11 / Chromium 87 does not support this command
+     }
+     await Promise.all(promises);
+   }
