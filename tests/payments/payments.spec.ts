@@ -1,3 +1,5 @@
+//Test Link: https://dev.azure.com/Cybersoft-Technologies-Inc/PrimeroEdge%20Classic/_testPlans/define?planId=115128&suiteId=115133
+
 import { test, expect, Page } from '@playwright/test';
 import { launchExpressPoint, closeExpressPoint, ExpressPointHandle } from '../../utils/launch';
 import { LoginPage } from '../../pages/LoginPage';
@@ -81,6 +83,26 @@ async function waitForToastIfPresent(window: Page): Promise<void> {
   if (appeared) await toast.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
 }
 
+// ─── Warning popup ────────────────────────────────────────────────────────────
+
+async function dismissWarningIfVisible(window: Page): Promise<void> {
+  const clicked = await window.evaluate(() => {
+    const alerts = Array.from(document.querySelectorAll<HTMLElement>('ion-alert'));
+    for (const alert of alerts) {
+      const visible = !!(alert.offsetWidth || alert.offsetHeight || alert.getClientRects().length);
+      if (!visible) continue;
+      const root: ShadowRoot | HTMLElement = (alert as any).shadowRoot ?? alert;
+      const buttons = Array.from(root.querySelectorAll<HTMLElement>('.alert-button, button'));
+      const okBtn = buttons.find(b => /ok/i.test((b.innerText || b.textContent || '').trim()));
+      if (okBtn) { okBtn.click(); return true; }
+    }
+    return false;
+  }).catch(() => false);
+  if (clicked) {
+    await window.locator('ion-alert').first().waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
+  }
+}
+
 // ─── Login & navigation ───────────────────────────────────────────────────────
 
 async function login(window: Page): Promise<void> {
@@ -88,6 +110,7 @@ async function login(window: Page): Promise<void> {
   await loginPage.loginWithPrimeroEdge(EP_USERNAME, EP_PASSWORD);
   await expect(loginPage.servingOptionsHeading().first()).toBeVisible({ timeout: 20_000 });
   await waitForLoadingOverlay(window);
+  await dismissWarningIfVisible(window);
 }
 
 async function openHamburgerMenu(window: Page): Promise<void> {
@@ -115,6 +138,7 @@ async function ensureServiceOpen(window: Page): Promise<void> {
   if (await openServiceItem.isVisible({ timeout: 3_000 }).catch(() => false)) {
     await openServiceItem.click({ timeout: 10_000 });
     await expect(window.getByText(/Opening Balance/i).first()).toBeVisible({ timeout: 10_000 });
+    await dismissWarningIfVisible(window);
     await window.getByRole('button', { name: /open service/i }).last().click();
     await expect(window.getByText(/Opening Balance/i).first()).toBeHidden({ timeout: 20_000 });
     await waitForLoadingOverlay(window);

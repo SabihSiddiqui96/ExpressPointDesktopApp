@@ -1,3 +1,6 @@
+//Test Link: //Test Link: https://dev.azure.com/Cybersoft-Technologies-Inc/PrimeroEdge%20Classic/_testPlans/define?planId=115128&suiteId=115140
+
+
 import { test, expect, Page } from '@playwright/test';
 import { loginToExpressPoint, closeExpressPoint } from '../../utils/helpers';
 
@@ -437,6 +440,24 @@ async function visibleStatusSnapshot(page: Page): Promise<string> {
     .join('\n'));
 }
 
+async function dismissWarningIfVisible(page: Page): Promise<void> {
+  const clicked = await page.evaluate(() => {
+    const alerts = Array.from(document.querySelectorAll<HTMLElement>('ion-alert'));
+    for (const alert of alerts) {
+      const visible = !!(alert.offsetWidth || alert.offsetHeight || alert.getClientRects().length);
+      if (!visible) continue;
+      const root: ShadowRoot | HTMLElement = (alert as any).shadowRoot ?? alert;
+      const buttons = Array.from(root.querySelectorAll<HTMLElement>('.alert-button, button'));
+      const okBtn = buttons.find(b => /ok/i.test((b.innerText || b.textContent || '').trim()));
+      if (okBtn) { okBtn.click(); return true; }
+    }
+    return false;
+  }).catch(() => false);
+  if (clicked) {
+    await page.locator('ion-alert').first().waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
+  }
+}
+
 async function createPatronSale(page: Page): Promise<void> {
   await closeSideMenu(page);
 
@@ -445,6 +466,7 @@ async function createPatronSale(page: Page): Promise<void> {
     await closeSideMenu(page);
 
     if (await page.getByText(/Opening Balance/i).first().isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await dismissWarningIfVisible(page);
       await clickIonButton(page, /Open Service|Continue Service/i);
     }
     await waitForLoadingOverlay(page);

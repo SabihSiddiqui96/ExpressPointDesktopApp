@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(npx --version)",
+      "PowerShell(Get-Command git -ErrorAction SilentlyContinue)",
+      "PowerShell(code --list-extensions 2>&1)",
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\Programs\\\\Microsoft VS Code\" -ErrorAction SilentlyContinue | Select-Object Name)",
+      "PowerShell(node -e \"console.log\\(process.version\\)\")",
+      "PowerShell(nvm version 2>&1)",
+      "PowerShell(Get-Command nvm -ErrorAction SilentlyContinue)",
+      "PowerShell($env:PATH -split \";\" | Where-Object { $_ -ne \"\" } | Sort-Object | Select-Object -First 30)",
+      "PowerShell(Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force)",
+      "PowerShell(code --install-extension ms-playwright.playwright)",
+      "PowerShell(code --install-extension dbaeumer.vscode-eslint)",
+      "PowerShell(code --install-extension esbenp.prettier-vscode)",
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\Programs\\\\Microsoft VS Code\\\\bin\" -ErrorAction SilentlyContinue | Select-Object Name; Get-ChildItem \"C:\\\\Program Files\\\\Microsoft VS Code\\\\bin\" -ErrorAction SilentlyContinue | Select-Object Name)",
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\Programs\" -ErrorAction SilentlyContinue | Select-Object Name)",
+      "PowerShell(@\\(\"$env:APPDATA\\\\Local\\\\Programs\\\\Microsoft VS Code\", \"$env:USERPROFILE\\\\AppData\\\\Local\\\\Programs\\\\Microsoft VS Code\", \"C:\\\\Users\\\\sabih.siddiqui\\\\AppData\\\\Local\\\\Programs\\\\Microsoft VS Code\"\\) | ForEach-Object { if \\(Test-Path $_\\) { Write-Output \"Found: $_\" } })",
+      "PowerShell(& \"C:\\\\Users\\\\sabih.siddiqui\\\\AppData\\\\Local\\\\Programs\\\\Microsoft VS Code\\\\bin\\\\code.cmd\" --install-extension ms-playwright.playwright 2>&1)",
+      "PowerShell(& \"C:\\\\Users\\\\sabih.siddiqui\\\\AppData\\\\Local\\\\Programs\\\\Microsoft VS Code\\\\bin\\\\code.cmd\" --install-extension dbaeumer.vscode-eslint 2>&1)",
+      "PowerShell(& \"C:\\\\Users\\\\sabih.siddiqui\\\\AppData\\\\Local\\\\Programs\\\\Microsoft VS Code\\\\bin\\\\code.cmd\" --install-extension esbenp.prettier-vscode 2>&1)"
+    ]
+  }
+}
