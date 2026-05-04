@@ -14,6 +14,11 @@ export type ReconciliationSessionValues = {
 
 export async function loginToPrimeroEdgeQa(page: Page): Promise<void> {
   await page.goto(`${PRIMEROEDGE_QA_URL}/login.aspx`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+  const username = page.locator('#UserNameTextBox');
+  if (!await username.isVisible({ timeout: 30_000 }).catch(() => false)) {
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
+  }
+  await expect(username).toBeVisible({ timeout: 30_000 });
   await page.locator('#UserNameTextBox').fill(PRIMEROEDGE_USERNAME);
   await page.locator('#PasswordTextBox').fill(PRIMEROEDGE_PASSWORD);
   await page.locator('#LoginButton').click();
