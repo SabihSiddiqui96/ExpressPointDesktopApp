@@ -16,7 +16,7 @@ import * as https from 'https';
 import * as url from 'url';
 
 interface TestRecord {
-  title: string;
+  specTitle: string;
   status: 'passed' | 'failed' | 'skipped';
 }
 
@@ -57,7 +57,10 @@ class WebhookReporter implements Reporter {
       result.status === 'passed' ? 'passed'
         : result.status === 'failed' || result.status === 'timedOut' ? 'failed'
           : 'skipped';
-    this.tests.push({ title: test.title, status });
+    this.tests.push({
+      specTitle: getSpecTitle(test),
+      status,
+    });
   }
 
   async onEnd(_result: FullResult): Promise<void> {
@@ -73,7 +76,7 @@ class WebhookReporter implements Reporter {
     const skipped = skippedTests.length;
     const total = this.tests.length;
     const formatTestLines = (prefix: string, tests: TestRecord[]) =>
-      tests.map(t => `${prefix} ${t.title}`).join('\n');
+      uniqueSpecTitles(tests).map(title => `${prefix} ${title}`).join('\n');
 
     const summaryLines = [
       `Passed: ${passed}`,
@@ -83,8 +86,8 @@ class WebhookReporter implements Reporter {
     ].filter(Boolean);
 
     const detailLines = [
-      failed > 0 ? `Failed tests:\n${formatTestLines('FAILED:', failedTests)}` : null,
-      skipped > 0 ? `Skipped tests:\n${formatTestLines('SKIPPED:', skippedTests)}` : null,
+      failed > 0 ? `Failed Tests:\n${formatTestLines('Failed:', failedTests)}` : null,
+      skipped > 0 ? `Skipped Tests:\n${formatTestLines('Skipped:', skippedTests)}` : null,
     ].filter(Boolean);
 
     const message = {
@@ -104,6 +107,30 @@ class WebhookReporter implements Reporter {
       console.error(`\n[webhook-reporter] Failed to send to RingCentral: ${(err as Error).message}`);
     }
   }
+}
+
+function getSpecTitle(test: TestCase): string {
+  const titleParts = test.titlePath()
+    .filter(part => part !== test.title && !part.endsWith('.spec.ts'));
+  const titleFromDescribe = titleParts[titleParts.length - 1];
+
+  const baseTitle = titleFromDescribe || path
+    .basename(test.location.file)
+    .replace(/\.spec\.ts$/, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, char => char.toUpperCase());
+
+  return stripAutomationTag(`EP App - ${baseTitle}`);
+}
+
+function stripAutomationTag(title: string): string {
+  return title
+    .replace(/\s*\.?\s*\[(Automated|Automation)\]\s*$/i, '')
+    .trim();
+}
+
+function uniqueSpecTitles(tests: TestRecord[]): string[] {
+  return [...new Set(tests.map(t => t.specTitle))];
 }
 
 function postJson(endpoint: string, body: unknown): Promise<void> {
