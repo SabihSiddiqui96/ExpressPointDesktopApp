@@ -9,7 +9,9 @@
     "test:smoke": "playwright test smoke.spec.ts",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
-    "report": "playwright show-report"
+    "report": "playwright show-report",
+    "mode:qa": "node scripts/set-mode.js qa",
+    "mode:regression": "node scripts/set-mode.js regression"
   },
   "keywords": [],
   "author": "",

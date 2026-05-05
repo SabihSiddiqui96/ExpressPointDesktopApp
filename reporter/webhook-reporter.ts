@@ -24,14 +24,24 @@ class WebhookReporter implements Reporter {
   private tests: TestRecord[] = [];
   private startTime = 0;
   private readonly rcWebhookUrl: string;
+  private readonly mode: string;
+  private readonly webhookEnabled: boolean;
 
   constructor() {
     this.rcWebhookUrl = process.env.RINGCENTRAL_WEBHOOK_URL ?? '';
+    this.mode = (process.env.TEST_MODE ?? 'qa').toLowerCase();
+    // Webhook only fires for regression runs. QA / dev iteration stays silent.
+    this.webhookEnabled = this.mode === 'regression';
   }
 
   async onBegin(_config: FullConfig, suite: Suite): Promise<void> {
     this.startTime = Date.now();
     this.tests = [];
+
+    if (!this.webhookEnabled) {
+      console.log(`\n[webhook-reporter] TEST_MODE=${this.mode} - webhook disabled (only fires when TEST_MODE=regression).`);
+      return;
+    }
 
     if (!this.rcWebhookUrl) return;
 
@@ -64,6 +74,7 @@ class WebhookReporter implements Reporter {
   }
 
   async onEnd(_result: FullResult): Promise<void> {
+    if (!this.webhookEnabled) return;
     if (!this.rcWebhookUrl) {
       console.log('\n[webhook-reporter] RINGCENTRAL_WEBHOOK_URL not set - skipping notification.');
       return;
