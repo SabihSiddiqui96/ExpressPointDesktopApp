@@ -1,4 +1,4 @@
-//Test Link: https://dev.azure.com/Cybersoft-Technologies-Inc/PrimeroEdge%20Classic/_testPlans/define?planId=115128
+//Test Link: https://dev.azure.com/Cybersoft-Technologies-Inc/PrimeroEdge%20Classic/_testPlans/define?planId=115128&suiteId=115131
 
 
 import { test, expect, Page } from '@playwright/test';
@@ -257,70 +257,44 @@ interface SwitchSiteCandidate {
   searchTerm: string;
 }
 
-function searchBarLocator(window: Page) {
-  return window.locator('input[placeholder*="SEARCH SCHOOL" i], input[placeholder*="Search School" i], input[placeholder*="Search" i]').first();
+async function pickAlternateSite(window: Page, currentSite: string): Promise<SwitchSiteCandidate | null> {
+  return window.evaluate((current: string) => {
+    const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    const items = Array.from(document.querySelectorAll<HTMLElement>('ion-modal ion-item, ion-modal ion-radio, ion-modal ion-label'))
+      .filter(visible);
+
+    const seen = new Set<string>();
+    for (const item of items) {
+      const name = (item.innerText ?? '').replace(/\s+/g, ' ').trim();
+      if (!name || seen.has(name)) continue;
+      seen.add(name);
+      if (name.toLowerCase() === current.toLowerCase()) continue;
+      if (/^(search|cancel|ok|sites?|switch)$/i.test(name)) continue;
+      const searchTerm = name.split(/\s+/).slice(0, 2).join(' ');
+      return { name, searchTerm };
+    }
+    return null;
+  }, currentSite);
 }
 
 async function openSwitchSitesDialog(window: Page): Promise<void> {
   await clickMenuItem(window, /Switch Sites?/i);
-  // The Switch Sites dialog is a plain div overlay (not an ion-modal/ion-alert).
-  // Identify it by the unique search input placeholder.
-  await expect(searchBarLocator(window)).toBeVisible({ timeout: 10_000 });
-}
-
-async function pickAlternateSite(window: Page, currentSite: string): Promise<SwitchSiteCandidate | null> {
-  return window.evaluate((current: string) => {
-    const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-
-    // Site rows display as "<id> - <name>" (e.g. "102 - BLUEFILED MIDDLE SCHOOL").
-    const seen = new Set<string>();
-    const matches: string[] = [];
-    for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
-      if (!visible(el)) continue;
-      const text = (el.innerText ?? '').replace(/\s+/g, ' ').trim();
-      if (!/^[A-Za-z0-9]\S*\s+-\s+\S/.test(text)) continue;
-      if (text.length > 120) continue;
-      if (text.includes('\n')) continue;
-      if (seen.has(text)) continue;
-      seen.add(text);
-      if (text.toLowerCase() === current.toLowerCase()) continue;
-      if (current && text.toLowerCase().includes(current.toLowerCase())) continue;
-      matches.push(text);
-    }
-    if (matches.length === 0) return null;
-
-    const name = matches[0];
-    // Search by the trailing site name (after "<id> - ") — using a couple of distinctive words
-    // narrows the list without typing the entire name.
-    const tail = name.replace(/^.*?\s+-\s+/, '');
-    const searchTerm = tail.split(/\s+/).slice(0, 2).join(' ') || tail;
-    return { name, searchTerm };
-  }, currentSite);
+  await expect(window.locator('ion-modal, ion-alert').first()).toBeVisible({ timeout: 10_000 });
+  await waitForText(window, /Search/i, 10_000);
 }
 
 async function searchAndSelectSite(window: Page, candidate: SwitchSiteCandidate): Promise<void> {
-  const searchBar = searchBarLocator(window);
+  const searchBar = window.locator('ion-modal ion-searchbar input, ion-modal input[type="search"], ion-modal input[placeholder*="Search" i]').first();
   await expect(searchBar).toBeVisible({ timeout: 10_000 });
   await searchBar.click();
   await searchBar.fill(candidate.searchTerm);
   await window.waitForTimeout(500);
 
-  // List rows are bare divs/spans — pick the smallest visible element whose
-  // text exactly equals the candidate's "<id> - <name>" string and click it.
-  const clicked = await window.evaluate((target: string) => {
-    const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-    const matches = Array.from(document.querySelectorAll<HTMLElement>('body *'))
-      .filter(visible)
-      .filter(el => (el.innerText ?? '').replace(/\s+/g, ' ').trim() === target);
-    if (matches.length === 0) return false;
-    matches.sort((a, b) => {
-      const ar = a.getBoundingClientRect(), br = b.getBoundingClientRect();
-      return (ar.width * ar.height) - (br.width * br.height);
-    });
-    matches[0].click();
-    return true;
-  }, candidate.name);
-  expect(clicked, `Switch Sites row "${candidate.name}" should be clickable`).toBe(true);
+  const result = window.locator('ion-modal ion-item, ion-modal ion-radio, ion-modal ion-label')
+    .filter({ hasText: new RegExp(escapeRegExp(candidate.name), 'i') })
+    .first();
+  await expect(result).toBeVisible({ timeout: 10_000 });
+  await result.click({ timeout: 10_000 });
 }
 
 async function confirmSwitchSite(window: Page): Promise<void> {
@@ -331,6 +305,10 @@ async function confirmSwitchSite(window: Page): Promise<void> {
   await expect(yesBtn).toBeVisible({ timeout: 10_000 });
   await yesBtn.click();
   await waitForLoadingOverlay(window);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // ---------------------------------------------------------------------------
