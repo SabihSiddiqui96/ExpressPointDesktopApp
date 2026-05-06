@@ -5,6 +5,8 @@ import { loginToExpressPoint, closeExpressPoint } from '../../utils/helpers';
 import { launchExpressPoint, ExpressPointHandle } from '../../utils/launch';
 import { LoginPage } from '../../pages/LoginPage';
 import { EP_USERNAME, EP_PASSWORD } from '../../utils/env';
+import { WarningDialog } from '../../utils/dialogs';
+import { ensureMealTypeSelected } from '../../utils/serving';
 import {
   filterReconciliationForToday,
   loginToPrimeroEdgeQa,
@@ -259,11 +261,13 @@ async function expectDashboard(window: Page): Promise<void> {
 async function verifyOpeningBalanceKeypad(window: Page): Promise<void> {
   await waitForText(window, /Summary Sales/i);
   await waitForText(window, /Opening Balance/i);
+  await WarningDialog.dismiss(window, 5_000);
 
   const openingBalance = window.locator('#openingBalance');
   await expect(openingBalance).toBeVisible({ timeout: 10_000 });
   await expect(openingBalance).toHaveValue('$0.00');
 
+  await WarningDialog.dismiss(window, 2_000);
   await window.locator('input.input-label-opencloseBalance').first().click({ timeout: 10_000 });
   await clickKeypadButton(window, '2');
   await expect.poll(() => openingBalance.inputValue(), { timeout: 5_000 }).toBe('$0.02');
@@ -289,13 +293,16 @@ async function openSummarySaleSession(window: Page): Promise<void> {
 
 async function openServiceFromMenuIfAvailable(window: Page): Promise<void> {
   await clickMenuItem(window, 'Open Service|Continue Service');
+  await WarningDialog.dismiss(window);
 
   const openingBalance = window.locator('#openingBalance');
   if (await openingBalance.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await WarningDialog.dismiss(window);
     await clickIonButton(window, /Open Service|Continue Service|Go to Summary Sale/i);
   }
 
   await waitForLoadingOverlay(window);
+  await WarningDialog.dismiss(window);
 }
 
 async function chooseFromPopover(window: Page, triggerText: string | RegExp, optionText: string): Promise<void> {
@@ -503,6 +510,7 @@ async function openFreshServiceForPatronSale(window: Page): Promise<string> {
 
   await waitForLoadingOverlay(window);
   await clickVisibleIonItem(window, /Open Service/i);
+  await WarningDialog.dismiss(window);
 
   await waitForText(window, /Opening Balance/i);
   await waitForText(window, /Coins|Bills/i);
@@ -520,6 +528,7 @@ async function openFreshServiceForPatronSale(window: Page): Promise<string> {
 async function completePatronMealSale(
   window: Page,
 ): Promise<Pick<ReconciliationSessionValues, 'mealItem' | 'mealItems' | 'saleAmount'>> {
+  await ensureMealTypeSelected(window);
   const idInput = window.locator('#pinInput input, input[placeholder="Enter an ID"]').first();
   await expect(idInput).toBeVisible({ timeout: 20_000 });
   await idInput.click();
