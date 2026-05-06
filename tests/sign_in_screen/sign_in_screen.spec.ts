@@ -92,6 +92,8 @@ async function clickMenuItem(window: Page, label: string | RegExp): Promise<void
   expect(clicked).toBe(true);
   await closeSideMenu(window);
   await waitForLoadingOverlay(window);
+  // Every page navigation can trigger the Square Authorization Warning.
+  await WarningDialog.dismiss(window, 3_000);
 }
 
 async function closeSideMenu(window: Page): Promise<void> {

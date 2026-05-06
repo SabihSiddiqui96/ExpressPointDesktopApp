@@ -75,6 +75,8 @@ async function clickMenuItem(window: Page, label: string): Promise<void> {
   await expect(item).toBeVisible({ timeout: 10_000 });
   await item.click({ timeout: 15_000 });
   await closeSideMenu(window);
+  // Every page navigation can trigger the Square Authorization Warning.
+  await WarningDialog.dismiss(window, 3_000);
 }
 
 async function visibleIonItemExists(window: Page, label: RegExp): Promise<boolean> {
@@ -105,6 +107,7 @@ async function clickVisibleIonItem(window: Page, label: RegExp): Promise<void> {
     return !!item;
   }, { source: label.source, flags: label.flags });
   expect(clicked).toBe(true);
+  await WarningDialog.dismiss(window, 3_000);
 }
 
 async function closeSideMenu(window: Page): Promise<void> {

@@ -76,6 +76,8 @@ async function clickMenuItem(window: Page, label: string): Promise<void> {
   }
   await expect(menuItem).toBeVisible({ timeout: 10_000 });
   await menuItem.click({ timeout: 15_000 });
+  // Every page navigation can trigger the Square Authorization Warning.
+  await WarningDialog.dismiss(window, 3_000);
 }
 
 async function clickDashboardItem(window: Page, label: string): Promise<void> {
@@ -86,6 +88,7 @@ async function clickDashboardItem(window: Page, label: string): Promise<void> {
     .first();
   await expect(item).toBeVisible({ timeout: 15_000 });
   await item.click({ timeout: 15_000 });
+  await WarningDialog.dismiss(window, 3_000);
 }
 
 async function clickVisibleIconButton(window: Page, iconName: string): Promise<void> {

@@ -339,6 +339,7 @@ async function navigateToBulkSales(window: Page): Promise<void> {
     const alreadyOnBulkSales = await bulkSalesForm.isVisible({ timeout: 2_000 }).catch(() => false);
     if (!alreadyOnBulkSales) {
       await window.locator('ion-item[detail]').filter({ hasText: 'Bulk Sales' }).first().click();
+      await WarningDialog.dismiss(window, 3_000);
     }
   }
 

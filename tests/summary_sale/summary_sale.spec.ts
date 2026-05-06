@@ -121,6 +121,8 @@ async function clickMenuItem(window: Page, label: string): Promise<void> {
   await window.keyboard.press('Escape').catch(() => { });
   await window.mouse.click(500, 500).catch(() => { });
   await waitForLoadingOverlay(window);
+  // Every page navigation can trigger the Square Authorization Warning.
+  await WarningDialog.dismiss(window, 3_000);
 }
 
 async function closeSideMenuIfOpen(window: Page): Promise<void> {
@@ -230,6 +232,7 @@ async function clickVisibleIonItem(window: Page, label: RegExp): Promise<void> {
     return !!item;
   }, { source: label.source, flags: label.flags });
   expect(clicked).toBe(true);
+  await WarningDialog.dismiss(window, 3_000);
 }
 
 // ---------------------------------------------------------------------------
