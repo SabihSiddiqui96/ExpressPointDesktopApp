@@ -747,7 +747,8 @@ test.describe('Payments', () => {
       await closeDialog(window);
 
       // Patron Id search — same Name sub-tab; do NOT switch to outer PIN tab.
-      await fillVisibleIonInput(window, 'input[placeholder*="Patron Id" i], input[placeholder*="Patron ID" i]', '1');
+      // Placeholder shows as "Patron Id" or "PIN" depending on the build.
+      await fillVisibleIonInput(window, 'input[placeholder*="Patron Id" i], input[placeholder*="Patron ID" i], input[placeholder*="PIN" i]', '1');
       await clickSearchButton(window);
       await waitForText(window, /result|patron|id/i);
       await closeDialog(window);

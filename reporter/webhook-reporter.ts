@@ -131,7 +131,7 @@ function getSpecTitle(test: TestCase): string {
     .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, char => char.toUpperCase());
 
-  return stripAutomationTag(`EP App - ${baseTitle}`);
+  return stripAutomationTag(baseTitle);
 }
 
 function stripAutomationTag(title: string): string {
