@@ -2,6 +2,8 @@
 
 import { test, expect, Page, Locator } from '@playwright/test';
 import { loginToExpressPoint, closeExpressPoint } from '../../utils/helpers';
+import { WarningDialog } from '../../utils/dialogs';
+import { ensureServiceClosed } from '../../utils/service';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -211,6 +213,92 @@ async function seedOpenSessionForToday(window: Page): Promise<number> {
   });
 }
 
+// ─── Site selection ───────────────────────────────────────────────────────────
+
+// Site 103 is spelled "BLUEFIELD" (or the typo'd "BLUEFILED" depending on build);
+// match either so the short-circuit + the Switch Sites filter both work.
+const TARGET_SITE_REGEX = /103\s*-\s*BLUEFI(?:E|I)LD/i;
+const TARGET_SITE_SEARCH = '103 - BLUEFIELD';
+
+/**
+ * Bulk Sales for this scenario must run against site 103. If a leftover
+ * service is open from a prior test, close it first (Switch Sites is disabled
+ * while a service is open). Then open the hamburger menu, click Switch Sites,
+ * search for "103 - BLUEFILED ...", click the result, and confirm.
+ */
+async function isAlreadyOnTargetSite(window: Page): Promise<boolean> {
+  // The dashboard shows "Serving Options for <site name>...". If <site name>
+  // already matches "103 - BLUEFILED", skip the whole switch-site dance.
+  return window.evaluate((source: string) => {
+    const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    const regex = new RegExp(`Serving Options for[\\s\\S]*?${source}`, 'i');
+    return Array.from(document.querySelectorAll<HTMLElement>('body *'))
+      .some(el => visible(el) && regex.test((el.innerText || '').replace(/\s+/g, ' ')));
+  }, TARGET_SITE_REGEX.source).catch(() => false);
+}
+
+async function switchToBluefieldSite(window: Page): Promise<void> {
+  await WarningDialog.dismiss(window, 3_000);
+
+  // Short-circuit: if the dashboard already shows "Serving Options for 103 -
+  // BLUEFILED ...", we're on the right site — nothing to switch.
+  if (await isAlreadyOnTargetSite(window)) return;
+
+  // 1. Close any open service (Switch Sites is disabled when one is open).
+  await ensureServiceClosed(window);
+  await WarningDialog.dismiss(window, 3_000);
+
+  // Re-check after closing — closing the service can navigate to a dashboard
+  // that already shows the target site.
+  if (await isAlreadyOnTargetSite(window)) return;
+
+  // 2. Open hamburger → Switch Sites.
+  const hamburger = window
+    .locator('ion-menu-button, ion-button')
+    .filter({ has: window.locator('ion-icon[name="menu"], ion-icon[name="menu-outline"]') })
+    .first();
+  await expect(hamburger).toBeVisible({ timeout: 10_000 });
+  await hamburger.click();
+
+  const switchItem = window.locator('ion-menu ion-item, ion-item').filter({ hasText: /Switch Sites?/i }).first();
+  await expect(switchItem).toBeVisible({ timeout: 10_000 });
+  await switchItem.click();
+
+  // 3. Switch Sites is a plain div overlay — wait for the search bar.
+  const searchBar = window.locator('input[placeholder*="SEARCH SCHOOL" i], input[placeholder*="Search School" i], input[placeholder*="Search" i]').first();
+  await expect(searchBar).toBeVisible({ timeout: 10_000 });
+
+  // 4. Type "103 - BLUEFILED" into the search bar to filter the list.
+  await searchBar.click();
+  await searchBar.fill(TARGET_SITE_SEARCH);
+  await window.waitForTimeout(500);
+
+  // 5. Click the matching row (smallest visible element with the target text).
+  const clicked = await window.evaluate((source: string) => {
+    const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    const regex = new RegExp(source, 'i');
+    const matches = Array.from(document.querySelectorAll<HTMLElement>('body *'))
+      .filter(el => visible(el) && regex.test((el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim()));
+    if (matches.length === 0) return false;
+    matches.sort((a, b) => {
+      const ar = a.getBoundingClientRect(), br = b.getBoundingClientRect();
+      return (ar.width * ar.height) - (br.width * br.height);
+    });
+    matches[0].click();
+    return true;
+  }, TARGET_SITE_REGEX.source);
+  expect(clicked, 'site row "103 - BLUEFILED" should be clickable in Switch Sites dialog').toBe(true);
+
+  // 6. Confirm dialog → click Yes.
+  const yesBtn = window.locator('ion-alert button, .alert-button, ion-button')
+    .filter({ hasText: /^(yes|confirm|ok)$/i })
+    .first();
+  await expect(yesBtn).toBeVisible({ timeout: 10_000 });
+  await yesBtn.click();
+  await window.waitForTimeout(1_500);
+  await WarningDialog.dismiss(window, 3_000);
+}
+
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
 async function navigateToBulkSales(window: Page): Promise<void> {
@@ -225,6 +313,7 @@ async function navigateToBulkSales(window: Page): Promise<void> {
   // to properly fire pointer events that Ionic Angular's router needs.
   await window.locator('ion-item[detail]').filter({ hasText: 'Bulk Sales' }).first().click();
   await window.waitForTimeout(3_000);
+  await WarningDialog.dismiss(window);
 
   // If Opening Balance screen appeared, confirm it to open today's service.
   const hasOpenBalance = await window
@@ -233,9 +322,11 @@ async function navigateToBulkSales(window: Page): Promise<void> {
     .catch(() => false);
 
   if (hasOpenBalance) {
+    await WarningDialog.dismiss(window);
     // Click the "Open Service" ion-button via Playwright locator
     await window.getByRole('button', { name: /open service/i }).last().click();
     await window.waitForTimeout(4_000);
+    await WarningDialog.dismiss(window);
     const stillOpeningBalance = await window
       .getByRole('heading', { name: 'Opening Balance' })
       .isVisible({ timeout: 1_000 })
@@ -430,6 +521,10 @@ test.describe('Bulk Sales', () => {
   test('Full bulk sales flow via Homeroom and Roster', async () => {
     const handle = await loginToExpressPoint();
     try {
+      // Bulk Sales for this scenario must run from site 103 (Bluefield Elementary).
+      // Close any open service if needed, then Switch Sites → 103 - BLUEFILED.
+      await switchToBluefieldSite(handle.window);
+
       await navigateToBulkSales(handle.window);
       await runBulkSalesFlow(handle.window, 'homeroom');
 
