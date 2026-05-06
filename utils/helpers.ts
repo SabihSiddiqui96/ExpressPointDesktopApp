@@ -2,6 +2,7 @@ import { expect, Page, Locator } from '@playwright/test';
 import { launchExpressPoint, closeExpressPoint, ExpressPointHandle } from './launch';
 import { LoginPage } from '../pages/LoginPage';
 import { EP_USERNAME, EP_PASSWORD } from './env';
+import { WarningDialog } from './dialogs';
 
 export async function loginToExpressPoint(): Promise<ExpressPointHandle> {
   const handle = await launchExpressPoint();
@@ -16,22 +17,8 @@ export async function loginToExpressPoint(): Promise<ExpressPointHandle> {
     window.getByText('Serving Options for', { exact: false }).first()
   ).toBeVisible({ timeout: 20_000 });
 
-  // Dismiss the Square Authorization token warning if it appears on the dashboard
-  const warningClicked = await window.evaluate(() => {
-    const alerts = Array.from(document.querySelectorAll<HTMLElement>('ion-alert'));
-    for (const alert of alerts) {
-      const visible = !!(alert.offsetWidth || alert.offsetHeight || alert.getClientRects().length);
-      if (!visible) continue;
-      const root: ShadowRoot | HTMLElement = (alert as any).shadowRoot ?? alert;
-      const buttons = Array.from(root.querySelectorAll<HTMLElement>('.alert-button, button'));
-      const okBtn = buttons.find(b => /ok/i.test((b.innerText || b.textContent || '').trim()));
-      if (okBtn) { okBtn.click(); return true; }
-    }
-    return false;
-  }).catch(() => false);
-  if (warningClicked) {
-    await window.locator('ion-alert').first().waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
-  }
+  // Dismiss the Square Authorization token warning if it appears on the dashboard.
+  await WarningDialog.dismiss(window);
 
   return handle;
 }

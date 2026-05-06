@@ -4,6 +4,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { launchExpressPoint, closeExpressPoint, ExpressPointHandle } from '../../utils/launch';
 import { ensureServiceClosed } from '../../utils/service';
+import { WarningDialog } from '../../utils/dialogs';
 import { LoginPage } from '../../pages/LoginPage';
 import { EP_USERNAME, EP_PASSWORD } from '../../utils/env';
 
@@ -106,35 +107,6 @@ async function closeSideMenu(window: Page): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Warning popup
-// ---------------------------------------------------------------------------
-
-async function dismissWarningIfVisible(window: Page, waitMs = 5_000): Promise<void> {
-  // The Square Authorization token Warning can render a beat after the dashboard
-  // settles — poll for a visible ion-alert with an OK button instead of probing once.
-  const deadline = Date.now() + waitMs;
-  while (Date.now() < deadline) {
-    const clicked = await window.evaluate(() => {
-      const alerts = Array.from(document.querySelectorAll<HTMLElement>('ion-alert'));
-      for (const alert of alerts) {
-        const visible = !!(alert.offsetWidth || alert.offsetHeight || alert.getClientRects().length);
-        if (!visible) continue;
-        const root: ShadowRoot | HTMLElement = (alert as any).shadowRoot ?? alert;
-        const buttons = Array.from(root.querySelectorAll<HTMLElement>('.alert-button, button'));
-        const okBtn = buttons.find(b => /^ok$/i.test((b.innerText || b.textContent || '').trim()));
-        if (okBtn) { okBtn.click(); return true; }
-      }
-      return false;
-    }).catch(() => false);
-    if (clicked) {
-      await window.locator('ion-alert').first().waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
-      return;
-    }
-    await window.waitForTimeout(250);
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Login
 // ---------------------------------------------------------------------------
 
@@ -143,7 +115,7 @@ async function login(window: Page): Promise<void> {
   await loginPage.loginWithPrimeroEdge(EP_USERNAME, EP_PASSWORD);
   await expect(loginPage.servingOptionsHeading().first()).toBeVisible({ timeout: 20_000 });
   await waitForLoadingOverlay(window);
-  await dismissWarningIfVisible(window);
+  await WarningDialog.dismiss(window, 5_000);
 }
 
 // ---------------------------------------------------------------------------
@@ -257,44 +229,68 @@ interface SwitchSiteCandidate {
   searchTerm: string;
 }
 
-async function pickAlternateSite(window: Page, currentSite: string): Promise<SwitchSiteCandidate | null> {
-  return window.evaluate((current: string) => {
-    const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-    const items = Array.from(document.querySelectorAll<HTMLElement>('ion-modal ion-item, ion-modal ion-radio, ion-modal ion-label'))
-      .filter(visible);
-
-    const seen = new Set<string>();
-    for (const item of items) {
-      const name = (item.innerText ?? '').replace(/\s+/g, ' ').trim();
-      if (!name || seen.has(name)) continue;
-      seen.add(name);
-      if (name.toLowerCase() === current.toLowerCase()) continue;
-      if (/^(search|cancel|ok|sites?|switch)$/i.test(name)) continue;
-      const searchTerm = name.split(/\s+/).slice(0, 2).join(' ');
-      return { name, searchTerm };
-    }
-    return null;
-  }, currentSite);
+function searchBarLocator(window: Page) {
+  return window.locator('input[placeholder*="SEARCH SCHOOL" i], input[placeholder*="Search School" i], input[placeholder*="Search" i]').first();
 }
 
 async function openSwitchSitesDialog(window: Page): Promise<void> {
   await clickMenuItem(window, /Switch Sites?/i);
-  await expect(window.locator('ion-modal, ion-alert').first()).toBeVisible({ timeout: 10_000 });
-  await waitForText(window, /Search/i, 10_000);
+  // The Switch Sites dialog is a plain div overlay (not an ion-modal/ion-alert).
+  // Identify it by the unique search input placeholder.
+  await expect(searchBarLocator(window)).toBeVisible({ timeout: 10_000 });
+}
+
+async function pickAlternateSite(window: Page, currentSite: string): Promise<SwitchSiteCandidate | null> {
+  return window.evaluate((current: string) => {
+    const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+
+    // Site rows display as "<id> - <name>" (e.g. "102 - BLUEFILED MIDDLE SCHOOL").
+    const seen = new Set<string>();
+    const matches: string[] = [];
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
+      if (!visible(el)) continue;
+      const text = (el.innerText ?? '').replace(/\s+/g, ' ').trim();
+      if (!/^[A-Za-z0-9]\S*\s+-\s+\S/.test(text)) continue;
+      if (text.length > 120) continue;
+      if (text.includes('\n')) continue;
+      if (seen.has(text)) continue;
+      seen.add(text);
+      if (text.toLowerCase() === current.toLowerCase()) continue;
+      if (current && text.toLowerCase().includes(current.toLowerCase())) continue;
+      matches.push(text);
+    }
+    if (matches.length === 0) return null;
+
+    const name = matches[0];
+    const tail = name.replace(/^.*?\s+-\s+/, '');
+    const searchTerm = tail.split(/\s+/).slice(0, 2).join(' ') || tail;
+    return { name, searchTerm };
+  }, currentSite);
 }
 
 async function searchAndSelectSite(window: Page, candidate: SwitchSiteCandidate): Promise<void> {
-  const searchBar = window.locator('ion-modal ion-searchbar input, ion-modal input[type="search"], ion-modal input[placeholder*="Search" i]').first();
+  const searchBar = searchBarLocator(window);
   await expect(searchBar).toBeVisible({ timeout: 10_000 });
   await searchBar.click();
   await searchBar.fill(candidate.searchTerm);
   await window.waitForTimeout(500);
 
-  const result = window.locator('ion-modal ion-item, ion-modal ion-radio, ion-modal ion-label')
-    .filter({ hasText: new RegExp(escapeRegExp(candidate.name), 'i') })
-    .first();
-  await expect(result).toBeVisible({ timeout: 10_000 });
-  await result.click({ timeout: 10_000 });
+  // List rows are bare divs/spans — pick the smallest visible element whose
+  // text exactly equals the candidate's "<id> - <name>" string and click it.
+  const clicked = await window.evaluate((target: string) => {
+    const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    const matches = Array.from(document.querySelectorAll<HTMLElement>('body *'))
+      .filter(visible)
+      .filter(el => (el.innerText ?? '').replace(/\s+/g, ' ').trim() === target);
+    if (matches.length === 0) return false;
+    matches.sort((a, b) => {
+      const ar = a.getBoundingClientRect(), br = b.getBoundingClientRect();
+      return (ar.width * ar.height) - (br.width * br.height);
+    });
+    matches[0].click();
+    return true;
+  }, candidate.name);
+  expect(clicked, `Switch Sites row "${candidate.name}" should be clickable`).toBe(true);
 }
 
 async function confirmSwitchSite(window: Page): Promise<void> {
@@ -305,10 +301,6 @@ async function confirmSwitchSite(window: Page): Promise<void> {
   await expect(yesBtn).toBeVisible({ timeout: 10_000 });
   await yesBtn.click();
   await waitForLoadingOverlay(window);
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // ---------------------------------------------------------------------------
@@ -351,7 +343,7 @@ test.describe('Sign In Screen', () => {
       await ensureServiceClosed(window);
 
       // The Square Authorization Warning often re-appears after the dashboard re-settles.
-      await dismissWarningIfVisible(window);
+      await WarningDialog.dismiss(window, 5_000);
 
       // Site name may render slightly after the "Serving Options for" prefix.
       await expect.poll(
@@ -360,7 +352,7 @@ test.describe('Sign In Screen', () => {
       ).not.toBe('');
       const originalSite = await readCurrentSiteName(window);
 
-      await dismissWarningIfVisible(window, 1_000);
+      await WarningDialog.dismiss(window, 1_000);
       await openSwitchSitesDialog(window);
 
       const candidate = await pickAlternateSite(window, originalSite);

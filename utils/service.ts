@@ -1,7 +1,43 @@
 import { expect, Page } from '@playwright/test';
+import { WarningDialog } from './dialogs';
 
 async function waitForLoadingOverlay(window: Page): Promise<void> {
   await window.locator('ion-loading').waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {});
+}
+
+/**
+ * Click YES on every visible confirmation that appears within `waitMs`.
+ * Handles both ion-alert ("Are you sure?") and plain-DOM CONFIRM modals
+ * ("Your closing balance is less than your starting balance").
+ * Loops up to `maxIterations` times so chained confirms all get answered.
+ */
+export async function dismissAllYesConfirms(window: Page, waitMs = 12_000, maxIterations = 6): Promise<void> {
+  for (let i = 0; i < maxIterations; i++) {
+    const deadline = Date.now() + waitMs;
+    let clicked = false;
+    while (Date.now() < deadline) {
+      clicked = await window.evaluate(() => {
+        const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+        const isYes = (text: string) => /^yes$/i.test(text.trim());
+
+        const alerts = Array.from(document.querySelectorAll<HTMLElement>('ion-alert')).filter(visible);
+        for (const alert of alerts) {
+          const root: ShadowRoot | HTMLElement = (alert as any).shadowRoot ?? alert;
+          const yes = Array.from(root.querySelectorAll<HTMLElement>('.alert-button, button'))
+            .find(b => isYes(b.innerText || b.textContent || ''));
+          if (yes) { yes.click(); return true; }
+        }
+        const yesBtn = Array.from(document.querySelectorAll<HTMLElement>('button, ion-button, [role="button"], a, span, div'))
+          .find(b => visible(b) && isYes(b.innerText || b.textContent || ''));
+        if (yesBtn) { yesBtn.click(); return true; }
+        return false;
+      }).catch(() => false);
+      if (clicked) break;
+      await window.waitForTimeout(300);
+    }
+    if (!clicked) break;
+    await window.waitForTimeout(800);
+  }
 }
 
 async function clickHamburger(window: Page): Promise<void> {
@@ -45,15 +81,7 @@ export async function ensureServiceClosed(window: Page): Promise<void> {
   await expect(closeBtn).toBeVisible({ timeout: 10_000 });
   await closeBtn.evaluate((el: HTMLElement) => el.click());
 
-  // Dismiss every "Are you sure?" / "closing balance is less" confirmation that pops up.
-  for (let i = 0; i < 4; i++) {
-    const alert = window.locator('ion-alert');
-    const appeared = await alert.waitFor({ state: 'visible', timeout: 5_000 }).then(() => true).catch(() => false);
-    if (!appeared) break;
-    await window.locator('ion-alert button, .alert-button')
-      .filter({ hasText: /^yes$/i }).first().click({ timeout: 3_000 }).catch(() => {});
-    await alert.waitFor({ state: 'hidden', timeout: 8_000 }).catch(() => {});
-  }
+  await dismissAllYesConfirms(window);
 
   const closingDialog = window.getByText(/closing pos terminal/i).first();
   if (await closingDialog.isVisible({ timeout: 5_000 }).catch(() => false)) {
@@ -61,5 +89,7 @@ export async function ensureServiceClosed(window: Page): Promise<void> {
   }
 
   await waitForLoadingOverlay(window);
+  // The Square Authorization Warning often re-appears after the dashboard re-settles.
+  await WarningDialog.dismiss(window, 3_000);
   await expect(openItem).toBeVisible({ timeout: 20_000 });
 }

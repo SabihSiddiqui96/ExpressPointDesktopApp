@@ -5,6 +5,9 @@ import { test, expect, Page } from '@playwright/test';
 import { launchExpressPoint, closeExpressPoint, ExpressPointHandle } from '../../utils/launch';
 import { LoginPage } from '../../pages/LoginPage';
 import { EP_USERNAME, EP_PASSWORD } from '../../utils/env';
+import { WarningDialog } from '../../utils/dialogs';
+import { dismissAllYesConfirms } from '../../utils/service';
+import { ensureMealTypeSelected } from '../../utils/serving';
 
 test.describe.configure({ timeout: 240_000 });
 
@@ -99,28 +102,6 @@ async function clickVisibleIconButton(window: Page, iconName: string): Promise<v
 }
 
 // ---------------------------------------------------------------------------
-// Warning popup
-// ---------------------------------------------------------------------------
-
-async function dismissWarningIfVisible(window: Page): Promise<void> {
-  const clicked = await window.evaluate(() => {
-    const alerts = Array.from(document.querySelectorAll<HTMLElement>('ion-alert'));
-    for (const alert of alerts) {
-      const visible = !!(alert.offsetWidth || alert.offsetHeight || alert.getClientRects().length);
-      if (!visible) continue;
-      const root: ShadowRoot | HTMLElement = (alert as any).shadowRoot ?? alert;
-      const buttons = Array.from(root.querySelectorAll<HTMLElement>('.alert-button, button'));
-      const okBtn = buttons.find(b => /ok/i.test((b.innerText || b.textContent || '').trim()));
-      if (okBtn) { okBtn.click(); return true; }
-    }
-    return false;
-  }).catch(() => false);
-  if (clicked) {
-    await window.locator('ion-alert').first().waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Login and service helpers
 // ---------------------------------------------------------------------------
 
@@ -129,21 +110,40 @@ async function login(window: Page): Promise<void> {
   await loginPage.loginWithPrimeroEdge(EP_USERNAME, EP_PASSWORD);
   await expect(loginPage.servingOptionsHeading().first()).toBeVisible({ timeout: 20_000 });
   await waitForLoadingOverlay(window);
-  await dismissWarningIfVisible(window);
+  await WarningDialog.dismiss(window);
 }
 
 async function enterServiceOrOpenFresh(window: Page, handle: ExpressPointHandle): Promise<{ window: Page; openedFresh: boolean }> {
+  await WarningDialog.dismiss(window, 2_000);
+
   const continueService = window
     .locator('ion-item[detail]')
     .filter({ hasText: /Continue Service/i })
     .first();
 
-  if (await continueService.isVisible({ timeout: 2_000 }).catch(() => false)) {
+  if (await continueService.isVisible({ timeout: 3_000 }).catch(() => false)) {
     // A session is already open (e.g. leftover from bulk_sales test) — close it
     // first so this test always works against a clean, freshly opened service.
     await closeOpenService(window);
     await waitForLoadingOverlay(window);
+    await WarningDialog.dismiss(window, 2_000);
   }
+
+  // Wait for the Open Service item to appear before clicking it.
+  const openItem = window.locator('ion-item[detail]').filter({ hasText: /^Open Service$/i }).first();
+  if (!await openItem.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await window.screenshot({ path: 'debug-dashboard.png', fullPage: true });
+    const dump = await window.evaluate(() => ({
+      bodyText: document.body.innerText.substring(0, 1000),
+      visibleAlerts: Array.from(document.querySelectorAll<HTMLElement>('ion-alert'))
+        .filter(el => !!(el.offsetWidth || el.offsetHeight)).length,
+      ionItems: Array.from(document.querySelectorAll<HTMLElement>('ion-item[detail]'))
+        .filter(el => !!(el.offsetWidth || el.offsetHeight))
+        .map(el => el.innerText?.trim().substring(0, 50)),
+    }));
+    console.log('DASHBOARD DEBUG:', JSON.stringify(dump));
+  }
+  await expect(openItem).toBeVisible({ timeout: 20_000 });
 
   await openOpeningBalance(window);
   await waitForText(window, /Opening Balance/i);
@@ -163,7 +163,7 @@ async function enterServiceOrOpenFresh(window: Page, handle: ExpressPointHandle)
 async function openOpeningBalance(window: Page): Promise<void> {
   await clickDashboardItem(window, 'Open Service');
   await waitForText(window, /Opening Balance/i);
-  await dismissWarningIfVisible(window);
+  await WarningDialog.dismiss(window);
 }
 
 async function fillOpeningAccountBalance(window: Page, amount: string): Promise<void> {
@@ -198,9 +198,12 @@ async function confirmOpenService(window: Page): Promise<void> {
   await openButton.evaluate((el: HTMLElement) => el.click());
   await expect(window.getByText(/Opening Balance/i).first()).toBeHidden({ timeout: 30_000 });
   await waitForLoadingOverlay(window);
+  await WarningDialog.dismiss(window);
 }
 
 async function completeLunchTransaction(window: Page): Promise<void> {
+  await ensureMealTypeSelected(window);
+
   const idInput = window.locator('#pinInput input, input[placeholder="Enter an ID"]').first();
   await expect(idInput).toBeVisible({ timeout: 20_000 });
   await idInput.fill('1337');
@@ -247,28 +250,21 @@ async function completeLunchTransaction(window: Page): Promise<void> {
 
 async function closeOpenService(window: Page): Promise<void> {
   await clickMenuItem(window, 'Close Service');
+  await WarningDialog.dismiss(window, 5_000);
   await waitForText(window, /Close Service/i);
+  await WarningDialog.dismiss(window, 2_000);
   const closeButton = window.locator('ion-button').filter({ hasText: /Close Service/i }).last();
   await expect(closeButton).toBeVisible({ timeout: 10_000 });
   await closeButton.evaluate((el: HTMLElement) => el.click());
 
-  // Dismiss any confirmation dialogs ("Are you sure?", "closing balance is less", etc.)
-  for (let i = 0; i < 4; i++) {
-    const alert = window.locator('ion-alert');
-    const appeared = await alert.waitFor({ state: 'visible', timeout: 5_000 }).then(() => true).catch(() => false);
-    if (!appeared) break;
-    await window.locator('ion-alert button, .alert-button')
-      .filter({ hasText: /^yes$/i })
-      .first()
-      .click({ timeout: 3_000 })
-      .catch(() => {});
-    await alert.waitFor({ state: 'hidden', timeout: 8_000 }).catch(() => {});
-  }
+  await dismissAllYesConfirms(window);
 
   const closingDialog = window.getByText(/closing pos terminal/i).first();
   if (await closingDialog.isVisible({ timeout: 5_000 }).catch(() => false)) {
     await expect(closingDialog).toBeHidden({ timeout: 60_000 });
   }
+  await waitForLoadingOverlay(window);
+  await WarningDialog.dismiss(window, 3_000);
 }
 
 async function logoutWithOpenServiceWarning(window: Page, handle: ExpressPointHandle): Promise<Page> {

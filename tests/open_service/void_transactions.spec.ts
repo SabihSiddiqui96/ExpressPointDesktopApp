@@ -4,6 +4,9 @@ import { test, expect, Page } from '@playwright/test';
 import { launchExpressPoint, closeExpressPoint, ExpressPointHandle } from '../../utils/launch';
 import { LoginPage } from '../../pages/LoginPage';
 import { EP_USERNAME, EP_PASSWORD } from '../../utils/env';
+import { WarningDialog } from '../../utils/dialogs';
+import { dismissAllYesConfirms } from '../../utils/service';
+import { ensureMealTypeSelected } from '../../utils/serving';
 
 test.describe.configure({ timeout: 300_000 });
 
@@ -85,24 +88,6 @@ async function clickVisibleIconButton(window: Page, iconName: string): Promise<v
 // Warning popup
 // ---------------------------------------------------------------------------
 
-async function dismissWarningIfVisible(window: Page): Promise<void> {
-  const clicked = await window.evaluate(() => {
-    const alerts = Array.from(document.querySelectorAll<HTMLElement>('ion-alert'));
-    for (const alert of alerts) {
-      const visible = !!(alert.offsetWidth || alert.offsetHeight || alert.getClientRects().length);
-      if (!visible) continue;
-      const root: ShadowRoot | HTMLElement = (alert as any).shadowRoot ?? alert;
-      const buttons = Array.from(root.querySelectorAll<HTMLElement>('.alert-button, button'));
-      const okBtn = buttons.find(b => /ok/i.test((b.innerText || b.textContent || '').trim()));
-      if (okBtn) { okBtn.click(); return true; }
-    }
-    return false;
-  }).catch(() => false);
-  if (clicked) {
-    await window.locator('ion-alert').first().waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Login and service helpers
 // ---------------------------------------------------------------------------
@@ -112,7 +97,7 @@ async function login(window: Page): Promise<void> {
   await loginPage.loginWithPrimeroEdge(EP_USERNAME, EP_PASSWORD);
   await expect(loginPage.servingOptionsHeading().first()).toBeVisible({ timeout: 20_000 });
   await waitForLoadingOverlay(window);
-  await dismissWarningIfVisible(window);
+  await WarningDialog.dismiss(window);
 }
 
 async function openService(window: Page, handle: ExpressPointHandle): Promise<Page> {
@@ -135,38 +120,32 @@ async function openService(window: Page, handle: ExpressPointHandle): Promise<Pa
   await window.locator('ion-item[detail]').filter({ hasText: /^Open Service$/i }).first()
     .click({ timeout: 15_000 });
   await expect(window.getByText(/Opening Balance/i).first()).toBeVisible({ timeout: 10_000 });
-  await dismissWarningIfVisible(window);
+  await WarningDialog.dismiss(window);
   await window.getByRole('button', { name: /open service/i }).last().click();
   await expect(window.getByText(/Opening Balance/i).first()).toBeHidden({ timeout: 20_000 });
   await waitForLoadingOverlay(window);
+  await WarningDialog.dismiss(window);
 
   return getAppWindow(handle);
 }
 
 async function closeService(window: Page): Promise<void> {
   await clickMenuItem(window, 'Close Service');
+  await WarningDialog.dismiss(window, 5_000);
   await waitForText(window, /Close Service/i);
+  await WarningDialog.dismiss(window, 2_000);
   const closeBtn = window.locator('ion-button').filter({ hasText: /Close Service/i }).last();
   await expect(closeBtn).toBeVisible({ timeout: 10_000 });
   await closeBtn.evaluate((el: HTMLElement) => el.click());
 
-  // Dismiss any confirmation dialogs ("Are you sure?", "closing balance is less", etc.)
-  for (let i = 0; i < 4; i++) {
-    const alert = window.locator('ion-alert');
-    const appeared = await alert.waitFor({ state: 'visible', timeout: 5_000 }).then(() => true).catch(() => false);
-    if (!appeared) break;
-    await window.locator('ion-alert button, .alert-button')
-      .filter({ hasText: /^yes$/i })
-      .first()
-      .click({ timeout: 3_000 })
-      .catch(() => {});
-    await alert.waitFor({ state: 'hidden', timeout: 8_000 }).catch(() => {});
-  }
+  await dismissAllYesConfirms(window);
 
   const closingDialog = window.getByText(/closing pos terminal/i).first();
   if (await closingDialog.isVisible({ timeout: 5_000 }).catch(() => false)) {
     await expect(closingDialog).toBeHidden({ timeout: 60_000 });
   }
+  await waitForLoadingOverlay(window);
+  await WarningDialog.dismiss(window, 3_000);
 }
 
 // ---------------------------------------------------------------------------
@@ -174,6 +153,7 @@ async function closeService(window: Page): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function lookupPatron(window: Page, id: string): Promise<void> {
+  await ensureMealTypeSelected(window);
   const idInput = window.locator('input[placeholder="Enter an ID"], #pinInput input').first();
   await expect(idInput).toBeVisible({ timeout: 20_000 });
   await idInput.fill(id);

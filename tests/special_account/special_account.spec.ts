@@ -5,6 +5,7 @@ import { test, expect, Page } from '@playwright/test';
 import { launchExpressPoint, closeExpressPoint, ExpressPointHandle } from '../../utils/launch';
 import { LoginPage } from '../../pages/LoginPage';
 import { EP_USERNAME, EP_PASSWORD } from '../../utils/env';
+import { WarningDialog } from '../../utils/dialogs';
 
 test.describe.configure({ timeout: 600_000 });
 
@@ -48,34 +49,6 @@ async function getAppWindow(handle: ExpressPointHandle): Promise<Page> {
   throw new Error('getAppWindow: ion-app not found after 15s');
 }
 
-// ─── Warning popup ────────────────────────────────────────────────────────────
-
-async function dismissWarningIfVisible(window: Page): Promise<void> {
-  const clicked = await window.evaluate(() => {
-    // First try via ion-alert (piercing shadow DOM)
-    const alerts = Array.from(document.querySelectorAll<HTMLElement>('ion-alert'));
-    for (const alert of alerts) {
-      const visible = !!(alert.offsetWidth || alert.offsetHeight || alert.getClientRects().length);
-      if (!visible) continue;
-      const root: ShadowRoot | HTMLElement = (alert as any).shadowRoot ?? alert;
-      const buttons = Array.from(root.querySelectorAll<HTMLElement>('.alert-button, button'));
-      const okBtn = buttons.find(b => /ok/i.test((b.innerText || b.textContent || '').trim()));
-      if (okBtn) { okBtn.click(); return true; }
-    }
-    // Fallback: any visible button whose full text is exactly "OK"
-    const allBtns = Array.from(document.querySelectorAll<HTMLElement>('button, ion-button'));
-    const okBtn = allBtns.find(b => {
-      const visible = !!(b.offsetWidth || b.offsetHeight || b.getClientRects().length);
-      return visible && /^ok$/i.test((b.innerText || b.textContent || '').trim());
-    });
-    if (okBtn) { okBtn.click(); return true; }
-    return false;
-  }).catch(() => false);
-  if (clicked) {
-    await window.locator('ion-alert').first().waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
-  }
-}
-
 // ─── Login & navigation ───────────────────────────────────────────────────────
 
 async function login(window: Page): Promise<void> {
@@ -83,7 +56,7 @@ const loginPage = new LoginPage(window);
   await loginPage.loginWithPrimeroEdge(EP_USERNAME, EP_PASSWORD);
   await expect(loginPage.servingOptionsHeading().first()).toBeVisible({ timeout: 20_000 });
   await waitForLoadingOverlay(window);
-  await dismissWarningIfVisible(window);
+  await WarningDialog.dismiss(window);
 }
 
 // ─── Service helpers ──────────────────────────────────────────────────────────
@@ -96,17 +69,18 @@ async function openService(window: Page): Promise<void> {
   if (await continueItem.isVisible({ timeout: 2_000 }).catch(() => false)) {
     await continueItem.click({ timeout: 10_000 });
     await waitForLoadingOverlay(window);
-    await dismissWarningIfVisible(window);
+    await WarningDialog.dismiss(window);
     return;
   }
 
   await window.locator('ion-item[detail]').filter({ hasText: /^Open Service$/i }).first()
     .click({ timeout: 15_000 });
   await expect(window.getByText(/Opening Balance/i).first()).toBeVisible({ timeout: 10_000 });
-  await dismissWarningIfVisible(window);
+  await WarningDialog.dismiss(window);
   await window.getByRole('button', { name: /open service/i }).last().click();
   await expect(window.getByText(/Opening Balance/i).first()).toBeHidden({ timeout: 20_000 });
   await waitForLoadingOverlay(window);
+  await WarningDialog.dismiss(window);
 }
 
 // ─── Serving grid helpers ─────────────────────────────────────────────────────
@@ -593,7 +567,7 @@ test.describe('Special Account', () => {
         // Let the app fully settle after completing both payments before the next scenario.
         await waitForLoadingOverlay(window);
         await window.waitForTimeout(800);
-        await dismissWarningIfVisible(window);
+        await WarningDialog.dismiss(window);
       }
     } finally {
       await closeExpressPoint(handle);

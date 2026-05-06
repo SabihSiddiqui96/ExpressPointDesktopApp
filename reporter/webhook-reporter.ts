@@ -50,7 +50,7 @@ class WebhookReporter implements Reporter {
     const message = {
       title: [
         '🚀 ExpressPoint Automation started on Sabih\'s local machine',
-        'Results will be posted once tests complete',
+        'Results will be posted once tests complete.... ',
       ].join('\n'),
       body: `Tests queued: ${totalTests}`,
     };
