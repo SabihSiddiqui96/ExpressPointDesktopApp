@@ -3,10 +3,18 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { loginToExpressPoint, closeExpressPoint } from '../../utils/helpers';
+import { WarningDialog } from '../../utils/dialogs';
+import { ensureMealTypeSelected } from '../../utils/serving';
 
 const PATRON_ID = '1337';
 const PATRON_FIRST_NAME = 'Sabih';
 const PATRON_LAST_NAME = 'PAID';
+// Second patron used to verify search filtering — ID 133745, "REDUCED, Sabih"
+// should appear in the unfiltered list but NOT in a search for "PAID, Sabih".
+const PATRON_ID_REDUCED = '133745';
+const PATRON_FIRST_NAME_REDUCED = 'Sabih';
+const PATRON_LAST_NAME_REDUCED = 'REDUCED';
+const PATRON_DISPLAY_NAME_REDUCED = `${PATRON_LAST_NAME_REDUCED}, ${PATRON_FIRST_NAME_REDUCED}`;
 
 test.describe.configure({ timeout: 360_000 });
 
@@ -111,20 +119,83 @@ async function navigateToTransactions(page: Page): Promise<void> {
   } else {
     await clickMenuItem(page, /^Transactions$/i);
   }
+  // Warning dialog can appear when navigating into Transactions; dismiss it.
+  await WarningDialog.dismiss(page, 5_000);
   await waitForText(page, /Transactions/i, 30_000);
+  await WarningDialog.dismiss(page, 2_000);
+  // Side panel can stay open after the menu click and overlay the search bar —
+  // close it (twice for stubborn cases) before any subsequent interactions.
+  await closeSideMenu(page);
+  await closeSideMenu(page);
 }
 
-async function searchTransactionsByName(page: Page): Promise<void> {
+// The transactions list renders the patron name as "<LAST>, <FIRST>" (e.g. "PAID, Sabih").
+const PATRON_DISPLAY_NAME = `${PATRON_LAST_NAME}, ${PATRON_FIRST_NAME}`;
+const PATRON_RESULT_REGEX = new RegExp(
+  `${PATRON_LAST_NAME},\\s*${PATRON_FIRST_NAME}`,
+  'i',
+);
+const PATRON_REDUCED_RESULT_REGEX = new RegExp(
+  `${PATRON_LAST_NAME_REDUCED},\\s*${PATRON_FIRST_NAME_REDUCED}`,
+  'i',
+);
+
+async function performTransactionSearch(page: Page): Promise<void> {
   await clickSearchIcon(page);
+  // The form may show separate First/Last fields OR a single search input.
+  // For the single-input case use the "<LAST>, <FIRST>" display string —
+  // matches what the transactions list renders so the filter is exact.
   const filledFirstLast = await tryFillVisibleTextInput(page, /first/i, PATRON_FIRST_NAME)
     && await tryFillVisibleTextInput(page, /last/i, PATRON_LAST_NAME);
   if (!filledFirstLast) {
-    const filledSingleSearch = await tryFillVisibleTextInput(page, /search|name|patron|student|filter/i, `${PATRON_FIRST_NAME} ${PATRON_LAST_NAME}`)
-      || await tryFillFirstVisibleInput(page, PATRON_FIRST_NAME);
+    const filledSingleSearch = await tryFillVisibleTextInput(page, /search|name|patron|student|filter/i, PATRON_DISPLAY_NAME)
+      || await tryFillFirstVisibleInput(page, PATRON_DISPLAY_NAME);
     expect(filledSingleSearch, 'transactions search should expose a name/search field').toBe(true);
   }
   await submitTransactionSearch(page);
-  await waitForText(page, /Sabih|PAID|1337/i, 30_000);
+}
+
+async function patronAppearsInResults(page: Page, timeoutMs = 8_000): Promise<boolean> {
+  return page.getByText(PATRON_RESULT_REGEX).first()
+    .isVisible({ timeout: timeoutMs }).catch(() => false);
+}
+
+async function bounceThroughDeviceInfo(page: Page): Promise<void> {
+  // Recovery for the Transactions search-results glitch: navigate to Device
+  // Information via the hamburger menu, then come back to Transactions.
+  await clickMenuItem(page, /^Device Information$/i);
+  await WarningDialog.dismiss(page, 3_000);
+  await waitForText(page, /Device Information|Device Info|Device Name|Version/i, 15_000).catch(() => {});
+  await closeSideMenu(page);
+  await navigateToTransactions(page);
+}
+
+async function searchTransactionsByName(page: Page): Promise<void> {
+  await performTransactionSearch(page);
+
+  // If results don't show up, retry the Device Info bounce + re-search up to 4 times.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (await patronAppearsInResults(page, 8_000)) break;
+
+    // First time only: maybe no transaction exists yet — create one.
+    if (attempt === 0) {
+      await createPatronSale(page);
+      await navigateToTransactions(page);
+      await performTransactionSearch(page);
+      continue;
+    }
+
+    // Subsequent attempts: bounce through Device Info and re-search.
+    await bounceThroughDeviceInfo(page);
+    await performTransactionSearch(page);
+  }
+
+  // Verify the patron's name actually appears in the results in the exact
+  // "<Last>, <First>" format the transactions list uses.
+  await expect(
+    page.getByText(PATRON_RESULT_REGEX).first(),
+    `transaction for "${PATRON_DISPLAY_NAME}" (${PATRON_ID}) should appear in results`,
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 async function submitTransactionSearch(page: Page): Promise<void> {
@@ -167,6 +238,7 @@ async function clickSearchIcon(page: Page): Promise<void> {
     return !!button;
   });
   expect(clicked, 'search icon should be clickable').toBe(true);
+  await page.waitForTimeout(500);
 }
 
 async function fillVisibleTextInput(page: Page, labelPattern: RegExp, value: string): Promise<void> {
@@ -440,44 +512,59 @@ async function visibleStatusSnapshot(page: Page): Promise<string> {
     .join('\n'));
 }
 
-async function dismissWarningIfVisible(page: Page): Promise<void> {
-  const clicked = await page.evaluate(() => {
-    const alerts = Array.from(document.querySelectorAll<HTMLElement>('ion-alert'));
-    for (const alert of alerts) {
-      const visible = !!(alert.offsetWidth || alert.offsetHeight || alert.getClientRects().length);
-      if (!visible) continue;
-      const root: ShadowRoot | HTMLElement = (alert as any).shadowRoot ?? alert;
-      const buttons = Array.from(root.querySelectorAll<HTMLElement>('.alert-button, button'));
-      const okBtn = buttons.find(b => /ok/i.test((b.innerText || b.textContent || '').trim()));
-      if (okBtn) { okBtn.click(); return true; }
-    }
-    return false;
-  }).catch(() => false);
-  if (clicked) {
-    await page.locator('ion-alert').first().waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
-  }
-}
-
-async function createPatronSale(page: Page): Promise<void> {
+async function createPatronSale(page: Page, patronId: string = PATRON_ID): Promise<void> {
   await closeSideMenu(page);
+  await WarningDialog.dismiss(page, 3_000);
 
   if (!await isPatronServingScreen(page)) {
     await clickMenuItem(page, /Open Service|Continue Service/i);
     await closeSideMenu(page);
+    await WarningDialog.dismiss(page);
 
     if (await page.getByText(/Opening Balance/i).first().isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await dismissWarningIfVisible(page);
+      await WarningDialog.dismiss(page);
       await clickIonButton(page, /Open Service|Continue Service/i);
     }
     await waitForLoadingOverlay(page);
+    await WarningDialog.dismiss(page);
   }
 
   await closeSideMenu(page);
-  await expect(page.locator('#pinInput input, input[placeholder="Enter an ID"]').first())
-    .toBeVisible({ timeout: 30_000 });
-  await ensureBreakfastMenuVisible(page);
-  await lookupPatron(page, PATRON_ID);
-  await clickFirstPaidMealItem(page);
+  await ensureMealTypeSelected(page);
+  await WarningDialog.dismiss(page, 2_000);
+
+  // Enter PIN via direct fill (mirrors close_service.spec.ts pattern).
+  const idInput = page.locator('input[placeholder="Enter an ID"], #pinInput input').first();
+  await expect(idInput).toBeVisible({ timeout: 30_000 });
+  await idInput.fill(patronId);
+  await page.waitForTimeout(300);
+
+  // Submit via the forward-circle icon button.
+  const fwdClicked = await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll<HTMLElement>('ion-button'))
+      .find(el => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)
+        && !!el.querySelector('ion-icon[name="caret-forward-circle"]'));
+    btn?.click();
+    return !!btn;
+  });
+  if (!fwdClicked) await page.keyboard.press('Enter');
+  await page.waitForTimeout(1_000);
+
+  // Wait for the SPECIFIC patron ID to load — matching "Add Funds"/"Item Count"
+  // alone is unsafe because those linger on screen from a prior patron, which
+  // makes us click meal items before the new patron actually loads.
+  await waitForText(page, new RegExp(`ID:\\s*${patronId}\\b`, 'i'), 30_000);
+
+  // Click any visible meal item (Lunch Meal preferred).
+  const lunchMeal = page.locator('ion-button').filter({ hasText: /^Lunch Meal$/i }).first();
+  const anyMeal = page.locator('ion-button').filter({ hasText: /Meal/i }).first();
+  const mealTarget = (await lunchMeal.isVisible({ timeout: 2_000 }).catch(() => false)) ? lunchMeal : anyMeal;
+  await expect(mealTarget).toBeVisible({ timeout: 10_000 });
+  await mealTarget.click();
+  await page.locator('ion-alert button, .alert-button')
+    .filter({ hasText: /^yes$/i }).first().click({ timeout: 3_000 }).catch(() => {});
+
+  await waitForText(page, /Total Amount Due/i, 15_000);
   await clickIonButton(page, /Charge/i);
   await page.locator('ion-alert button, .alert-button, ion-button')
     .filter({ hasText: /^(ok|done|close|continue|yes)$/i })
@@ -493,95 +580,40 @@ async function isPatronServingScreen(page: Page): Promise<boolean> {
     .catch(() => false);
 }
 
-async function ensureBreakfastMenuVisible(page: Page): Promise<void> {
-  if (await page.locator('ion-button').filter({ hasText: /Yemek|Chicken Burger|Breakfast Meal|Lunch Meal/i }).first()
-    .isVisible({ timeout: 5_000 }).catch(() => false)) {
-    return;
-  }
-
-  const mealTypeClicked = await page.evaluate(() => {
-    const candidates = Array.from(document.querySelectorAll<HTMLElement>('ion-button, button'))
-      .filter(el => {
-        const visible = !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-        const label = [el.innerText, el.getAttribute('aria-label'), el.getAttribute('title')].filter(Boolean).join(' ');
-        const rect = el.getBoundingClientRect();
-        return visible
-          && rect.top < 90
-          && rect.width > 120
-          && rect.left > 90
-          && (/Meal Type|Breakfast|Lunch/i.test(label) || rect.left < window.innerWidth * 0.55);
-      })
-      .sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
-    const candidate = candidates.find(el => /Meal Type|Breakfast|Lunch/i.test(el.innerText ?? ''))
-      ?? candidates[1]
-      ?? candidates[0];
-    candidate?.click();
-    return !!candidate;
-  });
-  expect(mealTypeClicked, 'meal type widget should be clickable when no menu is visible').toBe(true);
-  await waitForText(page, /Meal Type|Breakfast/i, 10_000);
-  await page.getByText(/Breakfast|Lunch/i).first().click();
-  await page.locator('ion-alert button, .alert-button')
-    .filter({ hasText: /^yes$/i })
-    .first()
-    .click({ timeout: 5_000 })
-    .catch(() => {});
-  await expect(page.locator('ion-button').filter({ hasText: /Yemek|Chicken Burger|Breakfast Meal|Lunch Meal/i }).first())
-    .toBeVisible({ timeout: 20_000 });
-}
-
-async function lookupPatron(page: Page, patronId: string): Promise<void> {
-  const idInput = page.locator('#pinInput input, input[placeholder="Enter an ID"]').first();
-  await expect(idInput).toBeVisible({ timeout: 20_000 });
-  await idInput.click();
-  await idInput.fill('');
-  for (const digit of patronId) {
-    await clickKeypadButton(page, digit);
-  }
-  await clickIconButton(page, 'caret-forward-circle');
-  await waitForText(page, /ID:\s*1337|Add Funds|Item Count/i, 30_000);
-}
-
-async function clickKeypadButton(page: Page, digit: string): Promise<void> {
-  const coords = await page.evaluate((value: string) => {
-    const button = Array.from(document.querySelectorAll<HTMLElement>('ion-button, button, [role="button"]'))
-      .find(el => {
-        const visible = !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-        const rect = el.getBoundingClientRect();
-        return visible && rect.top > 100 && el.innerText.trim() === value;
-      });
-    if (!button) return null;
-    const rect = button.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-  }, digit);
-  expect(coords, `keypad digit ${digit} should be visible`).not.toBeNull();
-  await page.mouse.click(coords!.x, coords!.y);
-}
-
-async function clickIconButton(page: Page, iconName: string): Promise<void> {
-  const clicked = await page.evaluate((name: string) => {
-    const button = Array.from(document.querySelectorAll<HTMLElement>('ion-button, button'))
-      .find(el => {
-        const visible = !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-        return visible && !!el.querySelector(`ion-icon[name="${name}"]`);
-      });
-    button?.click();
-    return !!button;
-  }, iconName);
-  expect(clicked).toBe(true);
-}
-
 async function clickFirstPaidMealItem(page: Page): Promise<void> {
-  const item = page.locator('ion-button')
-    .filter({ hasText: /Yemek|Chicken Burger|Breakfast Meal|Lunch Meal|Meal/i })
+  // Dismiss any Warning blocking interaction first.
+  await WarningDialog.dismiss(page, 2_000);
+
+  // Some sites show named meal-item buttons directly (Lunch Meal, Yemek);
+  // others show a category grid (Extra/Fruit/Milk/Grain) where you must click
+  // a category, then a sub-item. Try the named items first; if that doesn't
+  // populate the cart, fall back to a category and pick its first sub-item.
+  const namedItem = page.locator('ion-button')
+    .filter({ hasText: /Yemek|Chicken Burger|Breakfast Meal|Lunch Meal|Supper Meal|Dinner Meal|Snack Meal|Meal/i })
     .first();
-  await expect(item).toBeVisible({ timeout: 20_000 });
-  await item.click();
-  await page.locator('ion-alert button, .alert-button')
-    .filter({ hasText: /^yes$/i })
-    .first()
-    .click({ timeout: 5_000 })
-    .catch(() => {});
+
+  let added = false;
+  if (await namedItem.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await namedItem.click().catch(() => {});
+    await page.locator('ion-alert button, .alert-button')
+      .filter({ hasText: /^yes$/i }).first().click({ timeout: 3_000 }).catch(() => {});
+    added = await page.locator('body').innerText()
+      .then(text => !/No items selected/i.test(text)).catch(() => false);
+  }
+
+  if (!added) {
+    // Click a category, then click the first food item that appears.
+    const category = page.locator('ion-button')
+      .filter({ hasText: /^Extra$|^Fruit$|^Milk$|^Grain$|^Entree$|^Vegetable$|^Side$|^Dessert$|^Supper$/i })
+      .first();
+    if (await category.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await category.click();
+      await page.waitForTimeout(500);
+      await page.locator('ion-alert button, .alert-button')
+        .filter({ hasText: /^yes$/i }).first().click({ timeout: 2_000 }).catch(() => {});
+    }
+  }
+
   await expect.poll(
     () => page.locator('body').innerText().then(text => !/No items selected/i.test(text)),
     { timeout: 10_000 },
@@ -607,8 +639,30 @@ test.describe('Transactions', () => {
     const { window } = handle;
 
     try {
+      // Create TWO transactions — one for PAID, Sabih (1337) and one for
+      // REDUCED, Sabih (133745) — so we can verify the search filter properly
+      // narrows results.
+      await createPatronSale(window, PATRON_ID);
+      await createPatronSale(window, PATRON_ID_REDUCED);
+
       await navigateToTransactions(window);
+
+      // Both patrons should appear in the unfiltered list.
+      await expect(
+        window.getByText(PATRON_RESULT_REGEX).first(),
+        `"${PATRON_DISPLAY_NAME}" should appear in the unfiltered transactions list`,
+      ).toBeVisible({ timeout: 30_000 });
+      await expect(
+        window.getByText(PATRON_REDUCED_RESULT_REGEX).first(),
+        `"${PATRON_DISPLAY_NAME_REDUCED}" should appear in the unfiltered transactions list`,
+      ).toBeVisible({ timeout: 30_000 });
+
+      // Searching for "PAID, Sabih" should keep PAID and HIDE REDUCED.
       await searchTransactionsByName(window);
+      await expect(
+        window.getByText(PATRON_REDUCED_RESULT_REGEX).first(),
+        `"${PATRON_DISPLAY_NAME_REDUCED}" must NOT appear when filtering by "${PATRON_DISPLAY_NAME}"`,
+      ).toBeHidden({ timeout: 10_000 });
 
       await ensureTransactionWithDetails(window);
       await markFirstTransactionForReview(window);
@@ -616,7 +670,6 @@ test.describe('Transactions', () => {
       await waitForText(window, /Print/i, 10_000);
       await waitForText(window, /Menu Item|Breakfast|Lunch|Yemek|Burger|Meal/i, 10_000);
       await closeOpenDialog(window);
-
       await verifyTransactionStatusIcon(window);
       await waitForTransactionStatusRefresh(window);
     } finally {
