@@ -103,7 +103,7 @@ class WebhookReporter implements Reporter {
 
     const message = {
       title: [
-        'ExpressPoint Automation completed. Below are the results',
+        'ExpressPoint Automation completed. Below are the results:',
         '',
         ...summaryLines,
         '',

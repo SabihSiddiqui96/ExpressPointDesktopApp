@@ -102,6 +102,8 @@ async function login(window: Page): Promise<void> {
 
 async function openService(window: Page, handle: ExpressPointHandle): Promise<Page> {
   await waitForLoadingOverlay(window);
+  // Warning may already be visible after login — dismiss before any clicks.
+  await WarningDialog.dismiss(window, 3_000);
 
   // If a prior session is open (e.g. left over from open_service.spec), close it
   // first so we start with no served transactions.
@@ -114,17 +116,20 @@ async function openService(window: Page, handle: ExpressPointHandle): Promise<Pa
   if (continueVisible) {
     await closeService(window);
     await waitForLoadingOverlay(window);
+    await WarningDialog.dismiss(window, 3_000);
   }
 
-  // Open a fresh service
+  // Open a fresh service — Warning re-appears on every Open Service click.
   await window.locator('ion-item[detail]').filter({ hasText: /^Open Service$/i }).first()
     .click({ timeout: 15_000 });
+  await WarningDialog.dismiss(window, 5_000);
   await expect(window.getByText(/Opening Balance/i).first()).toBeVisible({ timeout: 10_000 });
-  await WarningDialog.dismiss(window);
+  await WarningDialog.dismiss(window, 2_000);
   await window.getByRole('button', { name: /open service/i }).last().click();
+  await WarningDialog.dismiss(window, 3_000);
   await expect(window.getByText(/Opening Balance/i).first()).toBeHidden({ timeout: 20_000 });
   await waitForLoadingOverlay(window);
-  await WarningDialog.dismiss(window);
+  await WarningDialog.dismiss(window, 3_000);
 
   return getAppWindow(handle);
 }
