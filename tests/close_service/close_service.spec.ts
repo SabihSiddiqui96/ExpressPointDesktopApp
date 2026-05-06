@@ -5,6 +5,9 @@ import { launchExpressPoint, closeExpressPoint, ExpressPointHandle } from '../..
 import { LoginPage } from '../../pages/LoginPage';
 import { EP_USERNAME, EP_PASSWORD } from '../../utils/env';
 import { loginToPrimeroEdgeQa } from '../../utils/primeroedge-web';
+import { WarningDialog } from '../../utils/dialogs';
+import { dismissAllYesConfirms } from '../../utils/service';
+import { ensureMealTypeSelected } from '../../utils/serving';
 
 test.describe.configure({ timeout: 480_000 });
 
@@ -147,21 +150,30 @@ async function login(window: Page): Promise<void> {
 
 async function openService(window: Page, handle: ExpressPointHandle): Promise<Page> {
   await waitForLoadingOverlay(window);
+  await WarningDialog.dismiss(window, 3_000);
 
   const alreadyOnCloseService = await window.evaluate(() => {
     const text = document.body.innerText;
     return /Close Service/i.test(text) && /Closing Balance/i.test(text) && /Cancel/i.test(text);
   });
   if (alreadyOnCloseService) {
-    await clickCloseServiceButton(window);
-    for (let i = 0; i < 3; i++) {
-      const alert = window.locator('ion-alert');
-      if (!await alert.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true).catch(() => false)) break;
-      await window.locator('ion-alert button, .alert-button')
-        .filter({ hasText: /^yes$/i }).first().click({ timeout: 3_000 }).catch(() => {});
-      await alert.waitFor({ state: 'hidden', timeout: 8_000 }).catch(() => {});
+    // Leftover session from a prior test put us on the Close Service screen.
+    // Fully close it: dismiss any Warning, click Close Service, answer YES to
+    // every confirm (closing-balance < starting), then wait for the dashboard.
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await WarningDialog.dismiss(window, 5_000);
+      const stillOnClose = await window.evaluate(() =>
+        /Closing Balance/i.test(document.body.innerText) && /Print session/i.test(document.body.innerText)
+      );
+      if (!stillOnClose) break;
+      await clickCloseServiceButton(window);
+      // Some confirms appear immediately, others after the click settles.
+      await window.waitForTimeout(1_500);
+      await WarningDialog.dismiss(window, 2_000);
+      await dismissAllYesConfirms(window, 8_000, 4);
+      await waitForLoadingOverlay(window);
     }
-    await waitForLoadingOverlay(window);
+    await WarningDialog.dismiss(window, 3_000);
     await waitForText(window, /Serving Options|Open Service|Continue Service/i, 30_000);
   }
 
@@ -169,18 +181,36 @@ async function openService(window: Page, handle: ExpressPointHandle): Promise<Pa
   if (await visibleIonItemExists(window, /Continue Service/i)) {
     await closeServiceFull(window);
     await waitForLoadingOverlay(window);
+    await WarningDialog.dismiss(window, 3_000);
   }
 
   if (!await visibleIonItemExists(window, /^Open Service$/i)) {
     if (await visibleIonItemExists(window, /Continue Service/i)) {
       await clickVisibleIonItem(window, /Continue Service/i);
       await waitForLoadingOverlay(window);
+      await WarningDialog.dismiss(window);
       return getAppWindow(handle);
     }
   }
 
+  // Wait for "Open Service" to render after any earlier state transitions.
+  if (!await visibleIonItemExists(window, /^Open Service$/i)) {
+    const dump = await window.evaluate(() => ({
+      bodyText: document.body.innerText.substring(0, 600),
+      ionItems: Array.from(document.querySelectorAll<HTMLElement>('ion-item, ion-item[detail]'))
+        .filter(el => !!(el.offsetWidth || el.offsetHeight))
+        .map(el => el.innerText?.trim().substring(0, 60)),
+    }));
+    console.log('OPEN_SERVICE WAIT DEBUG:', JSON.stringify(dump));
+  }
+  await expect.poll(
+    () => visibleIonItemExists(window, /^Open Service$/i),
+    { timeout: 30_000 },
+  ).toBe(true);
+
   await clickVisibleIonItem(window, /^Open Service$/i);
   await expect(window.getByText(/Opening Balance/i).first()).toBeVisible({ timeout: 10_000 });
+  await WarningDialog.dismiss(window);
 
   // Enter opening balance — mirror open_service.spec.ts pattern exactly
   const input = window.locator('input.input-label-opencloseBalance').first();
@@ -208,43 +238,8 @@ async function openService(window: Page, handle: ExpressPointHandle): Promise<Pa
 // ---------------------------------------------------------------------------
 
 async function recordTransaction(window: Page): Promise<void> {
-  const idInput = window.locator('input[placeholder="Enter an ID"], #pinInput input').first();
-  await expect(idInput).toBeVisible({ timeout: 20_000 });
-  // Ensure a Lunch/Breakfast meal is active (same as transactions.spec.ts ensureBreakfastMenuVisible)
-  const mealBtnVisible = await window.locator('ion-button')
-    .filter({ hasText: /Lunch Meal|Breakfast Meal|Yemek|Chicken Burger|Meal/i })
-    .first()
-    .isVisible({ timeout: 3_000 })
-    .catch(() => false);
-  if (!mealBtnVisible) {
-    const mealTypeCoords = await window.evaluate(() => {
-      const btn = Array.from(document.querySelectorAll<HTMLElement>('ion-button, button'))
-        .find(el => {
-          const visible = !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-          const rect = el.getBoundingClientRect();
-          const label = [el.innerText, el.getAttribute('aria-label'), el.getAttribute('title')].filter(Boolean).join(' ');
-          return visible && rect.top < 90 && /Meal Type|Lunch|Breakfast|Supper|Dinner|Menu/i.test(label);
-        });
-      if (!btn) return null;
-      const r = btn.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    });
-    if (mealTypeCoords) {
-      await window.mouse.click(mealTypeCoords.x, mealTypeCoords.y);
-      await window.waitForTimeout(1_000);
-      const lunchOpt = window.getByText(/^Lunch$/i).first();
-      if (await lunchOpt.isVisible({ timeout: 2_000 }).catch(() => false)) {
-        await lunchOpt.click();
-      } else {
-        await window.getByText(/Breakfast|Lunch/i).first().click();
-      }
-      await window.locator('ion-alert button, .alert-button')
-        .filter({ hasText: /^yes$/i }).first().click({ timeout: 3_000 }).catch(() => {});
-      await waitForLoadingOverlay(window);
-    }
-  }
+  await ensureMealTypeSelected(window);
 
-  // Re-get idInput since DOM might have changed
   const idInput2 = window.locator('input[placeholder="Enter an ID"], #pinInput input').first();
   await expect(idInput2).toBeVisible({ timeout: 15_000 });
   await idInput2.fill(PATRON_ID);
@@ -313,7 +308,7 @@ async function recordTransaction(window: Page): Promise<void> {
     .filter({ hasText: /^(ok|done|close|continue)$/i }).first()
     .click({ timeout: 4_000 }).catch(() => {});
   await waitForLoadingOverlay(window);
-  await expect(idInput).toBeVisible({ timeout: 30_000 });
+  await expect(idInput2).toBeVisible({ timeout: 30_000 });
 }
 
 // ---------------------------------------------------------------------------
@@ -322,8 +317,11 @@ async function recordTransaction(window: Page): Promise<void> {
 
 async function navigateToCloseService(window: Page): Promise<void> {
   await clickMenuItem(window, 'Close Service');
+  // Warning dialog re-appears on Close Service navigation; dismiss before continuing.
+  await WarningDialog.dismiss(window, 5_000);
   await waitForText(window, /Close Service/i, 20_000);
   await waitForLoadingOverlay(window);
+  await WarningDialog.dismiss(window, 2_000);
 }
 
 async function enterClosingBalance(window: Page, amount: string): Promise<void> {
@@ -532,19 +530,17 @@ async function closeVisibleModal(window: Page): Promise<void> {
 
 async function closeServiceFull(window: Page): Promise<void> {
   await clickMenuItem(window, 'Close Service');
+  await WarningDialog.dismiss(window, 5_000);
   await waitForText(window, /Close Service/i);
+  await WarningDialog.dismiss(window, 2_000);
   await clickCloseServiceButton(window);
-  for (let i = 0; i < 4; i++) {
-    const alert = window.locator('ion-alert');
-    if (!await alert.waitFor({ state: 'visible', timeout: 5_000 }).then(() => true).catch(() => false)) break;
-    await window.locator('ion-alert button, .alert-button')
-      .filter({ hasText: /^yes$/i }).first().click({ timeout: 3_000 }).catch(() => {});
-    await alert.waitFor({ state: 'hidden', timeout: 8_000 }).catch(() => {});
-  }
+  await dismissAllYesConfirms(window);
   const closingDialog = window.getByText(/closing pos terminal/i).first();
   if (await closingDialog.isVisible({ timeout: 5_000 }).catch(() => false)) {
     await expect(closingDialog).toBeHidden({ timeout: 60_000 });
   }
+  await waitForLoadingOverlay(window);
+  await WarningDialog.dismiss(window, 3_000);
 }
 
 // ---------------------------------------------------------------------------
