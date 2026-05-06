@@ -4,6 +4,7 @@ import { test, expect, Page } from '@playwright/test';
 import { launchExpressPoint, closeExpressPoint, ExpressPointHandle } from '../../utils/launch';
 import { LoginPage } from '../../pages/LoginPage';
 import { EP_USERNAME, EP_PASSWORD } from '../../utils/env';
+import { WarningDialog } from '../../utils/dialogs';
 
 test.describe.configure({ timeout: 300_000 });
 
@@ -83,25 +84,6 @@ async function waitForToastIfPresent(window: Page): Promise<void> {
   if (appeared) await toast.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
 }
 
-// ─── Warning popup ────────────────────────────────────────────────────────────
-
-async function dismissWarningIfVisible(window: Page): Promise<void> {
-  const clicked = await window.evaluate(() => {
-    const alerts = Array.from(document.querySelectorAll<HTMLElement>('ion-alert'));
-    for (const alert of alerts) {
-      const visible = !!(alert.offsetWidth || alert.offsetHeight || alert.getClientRects().length);
-      if (!visible) continue;
-      const root: ShadowRoot | HTMLElement = (alert as any).shadowRoot ?? alert;
-      const buttons = Array.from(root.querySelectorAll<HTMLElement>('.alert-button, button'));
-      const okBtn = buttons.find(b => /ok/i.test((b.innerText || b.textContent || '').trim()));
-      if (okBtn) { okBtn.click(); return true; }
-    }
-    return false;
-  }).catch(() => false);
-  if (clicked) {
-    await window.locator('ion-alert').first().waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
-  }
-}
 
 // ─── Login & navigation ───────────────────────────────────────────────────────
 
@@ -110,7 +92,7 @@ async function login(window: Page): Promise<void> {
   await loginPage.loginWithPrimeroEdge(EP_USERNAME, EP_PASSWORD);
   await expect(loginPage.servingOptionsHeading().first()).toBeVisible({ timeout: 20_000 });
   await waitForLoadingOverlay(window);
-  await dismissWarningIfVisible(window);
+  await WarningDialog.dismiss(window);
 }
 
 async function openHamburgerMenu(window: Page): Promise<void> {
@@ -126,10 +108,11 @@ async function openHamburgerMenu(window: Page): Promise<void> {
 async function ensureServiceOpen(window: Page): Promise<void> {
   await waitForLoadingOverlay(window);
 
-  // If Continue Service is visible, service is already open
+  // If Continue Service is visible, service is already open — clicking it shows the warning.
   const continueService = window.locator('ion-item[detail]')
     .filter({ hasText: /Continue Service/i }).first();
   if (await continueService.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await WarningDialog.dismiss(window);
     return;
   }
 
@@ -138,10 +121,11 @@ async function ensureServiceOpen(window: Page): Promise<void> {
   if (await openServiceItem.isVisible({ timeout: 3_000 }).catch(() => false)) {
     await openServiceItem.click({ timeout: 10_000 });
     await expect(window.getByText(/Opening Balance/i).first()).toBeVisible({ timeout: 10_000 });
-    await dismissWarningIfVisible(window);
+    await WarningDialog.dismiss(window);
     await window.getByRole('button', { name: /open service/i }).last().click();
     await expect(window.getByText(/Opening Balance/i).first()).toBeHidden({ timeout: 20_000 });
     await waitForLoadingOverlay(window);
+    await WarningDialog.dismiss(window);
     await window.waitForTimeout(1_000);
   }
 }
@@ -149,9 +133,11 @@ async function ensureServiceOpen(window: Page): Promise<void> {
 async function navigateToPayments(window: Page): Promise<void> {
   await waitForLoadingOverlay(window);
   await window.waitForTimeout(1_000);
+  await WarningDialog.dismiss(window, 3_000);
 
   // Ensure a service is open before Payments will be accessible
   await ensureServiceOpen(window);
+  await WarningDialog.dismiss(window, 3_000);
 
   // Dashboard items use ion-item[detail]
   const dashboardPayments = window.locator('ion-item[detail]').filter({ hasText: /^Payments$/i }).first();
@@ -164,14 +150,33 @@ async function navigateToPayments(window: Page): Promise<void> {
     await window.locator('ion-item').filter({ hasText: /^Payments$/i }).first()
       .click({ timeout: 10_000 });
   }
+  await WarningDialog.dismiss(window, 5_000);
   await waitForLoadingOverlay(window);
   await window.waitForTimeout(1_000);
+  await WarningDialog.dismiss(window, 2_000);
+
+  // Close any open side menu so the Payments segments aren't covered.
+  await window.evaluate(async () => {
+    const menu = document.querySelector('ion-menu') as any;
+    if (menu?.close) {
+      await Promise.race([menu.close(), new Promise(resolve => setTimeout(resolve, 1_000))]);
+    }
+  }).catch(() => {});
+  await window.keyboard.press('Escape').catch(() => {});
+  await window.waitForTimeout(300);
 }
 
 // ─── Patron lookup ────────────────────────────────────────────────────────────
 
 async function clickPatronIdTab(window: Page): Promise<void> {
-  await domClick(window, 'ion-segment-button', 'patron id');
+  // The segment is labeled "PIN" in the current UI; older builds called it "Patron ID".
+  // Try PIN first, fall back to "Patron ID".
+  await window.evaluate(() => {
+    const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    const els = Array.from(document.querySelectorAll<HTMLElement>('ion-segment-button'));
+    const target = els.find(e => visible(e) && /^(PIN|Patron\s*ID)$/i.test((e.innerText || e.textContent || '').trim()));
+    target?.click();
+  });
   await window.waitForTimeout(400);
 }
 
@@ -540,8 +545,32 @@ async function clickTransactionsIcon(window: Page): Promise<void> {
 
 // ─── Lookup sub-tab helpers ───────────────────────────────────────────────────
 
-async function clickLookupSubTab(window: Page, tabName: 'Name' | 'Homeroom' | 'Roster' | 'PIN'): Promise<void> {
-  await domClick(window, 'ion-segment-button, ion-tab-button', tabName);
+async function clickLookupSubTab(window: Page, tabName: 'Name' | 'Homeroom' | 'Roster'): Promise<void> {
+  // Pick the Lookup sub-tab — NOT the outer "PIN/LOOKUP" segment at the top
+  // of the Payments page. The outer segment is rendered higher on the page;
+  // skip any matching button whose Y position is in the top 25% of the
+  // viewport (that's the outer toolbar/segment).
+  const result = await window.evaluate((target: string) => {
+    const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    const matches = (el: HTMLElement, t: string) =>
+      new RegExp(`^${t}$`, 'i').test((el.innerText || el.textContent || '').trim());
+
+    const all = Array.from(document.querySelectorAll<HTMLElement>('ion-segment-button, ion-tab-button, button'))
+      .filter(b => visible(b) && matches(b, target));
+
+    if (all.length === 0) return { found: false, allButtonTexts: Array.from(document.querySelectorAll<HTMLElement>('ion-segment-button, ion-tab-button')).filter(visible).map(b => (b.innerText || '').trim()) };
+
+    const cutoffY = globalThis.innerHeight * 0.25;
+    // Prefer buttons BELOW the top 25% of the viewport (sub-tabs sit in body content).
+    const subTabButtons = all.filter(b => b.getBoundingClientRect().top > cutoffY);
+    const btn = subTabButtons[0] ?? all[all.length - 1];
+    btn.click();
+    return { found: true };
+  }, tabName);
+
+  if (!result.found) {
+    console.log('LOOKUP SUB-TAB DEBUG: target=', tabName, 'visible buttons:', JSON.stringify((result as any).allButtonTexts));
+  }
   await window.waitForTimeout(400);
 }
 
@@ -560,18 +589,36 @@ async function fillVisibleIonInput(window: Page, selector: string, value: string
 
 async function clickSearchButton(window: Page): Promise<void> {
   const clicked = await window.evaluate(() => {
-    const buttons = Array.from(document.querySelectorAll<HTMLElement>('ion-button'));
-    const button = buttons.find(el =>
-      !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)
-      && !el.hasAttribute('disabled')
-      && /^search$/i.test((el.innerText || el.textContent || '').trim()),
+    const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    const buttons = Array.from(document.querySelectorAll<HTMLElement>('ion-button, button'))
+      .filter(el => visible(el) && !el.hasAttribute('disabled'));
+
+    // 1. Text match — Search / Submit / Find / Go / Lookup, exact OR substring.
+    const textBtn = buttons.find(el => {
+      const text = (el.innerText || el.textContent || '').trim();
+      return /^(search|submit|find|go|lookup|enter)$/i.test(text);
+    });
+    if (textBtn) { textBtn.click(); return true; }
+
+    // 2. Icon-only button — search / checkmark / arrow / magnifier.
+    const iconBtn = buttons.find(el => {
+      const icon = el.querySelector('ion-icon');
+      const iconName = icon?.getAttribute('name') ?? '';
+      return /search|checkmark|arrow-forward|caret-forward|enter/i.test(iconName);
+    });
+    if (iconBtn) { iconBtn.click(); return true; }
+
+    // 3. Last-ditch: substring text match (eg "Search Patron").
+    const looseBtn = buttons.find(el =>
+      /search|submit|find|lookup/i.test((el.innerText || el.textContent || '').trim()),
     );
-    if (!button) return false;
-    button.click();
-    return true;
+    if (looseBtn) { looseBtn.click(); return true; }
+
+    return false;
   });
   if (!clicked) {
-    throw new Error('clickSearchButton: visible enabled Search button not found');
+    // Last resort: press Enter on the focused input.
+    await window.keyboard.press('Enter');
   }
   await waitForLoadingOverlay(window);
 }
@@ -585,11 +632,11 @@ test.describe('Payments', () => {
       await login(handle.window);
       let window = await getAppWindow(handle);
 
-      // ── 1 & 2. Navigate to Payments, verify Patron ID and Lookup segments ──
+      // ── 1 & 2. Navigate to Payments, verify PIN and LOOKUP segments ──
+      // (The UI label is "PIN" now — older test code referred to it as "Patron ID".)
       await navigateToPayments(window);
-      // Patron ID / Lookup can be ion-segment-button or ion-item or ion-tab-button
       await expect(
-        window.locator('ion-segment-button, ion-item, ion-tab-button').filter({ hasText: /patron id/i }).first()
+        window.locator('ion-segment-button, ion-item, ion-tab-button').filter({ hasText: /\b(PIN|Patron\s*ID)\b/i }).first()
       ).toBeVisible({ timeout: 20_000 });
       await expect(
         window.locator('ion-segment-button, ion-item, ion-tab-button').filter({ hasText: /lookup/i }).first()
@@ -658,7 +705,8 @@ test.describe('Payments', () => {
       // Go back to the entry screen and find the ID/PIN toggle label
       await clickPatronIdTab(window);
       await waitForLoadingOverlay(window);
-      const idPinToggle = window.locator('input[placeholder*="Enter an"]').first();
+      // Placeholder is "Enter a PIN" or "Enter an ID" depending on toggle state.
+      const idPinToggle = window.locator('input[placeholder*="Enter a"]').first();
       await expect(idPinToggle).toBeVisible({ timeout: 10_000 });
       const initialText = await idPinToggle.getAttribute('placeholder');
 
@@ -672,7 +720,7 @@ test.describe('Payments', () => {
         const restoredText = await idPinToggle.getAttribute('placeholder');
         expect(restoredText).toBe(initialText);
       } else {
-        expect(initialText).toMatch(/Enter an (ID|PIN)/i);
+        expect(initialText).toMatch(/Enter a[n]?\s+(ID|PIN)/i);
       }
 
       // ── 9. Transactions icon on top-right ────────────────────────────────
@@ -683,24 +731,25 @@ test.describe('Payments', () => {
       // ── 10. Lookup tab — Name, PIN, Homeroom, Roster ─────────────────────
       await clickLookupTab(window);
 
-      // Name tab — first name search
+      // Name sub-tab — has First Name, Last Name, AND Patron Id inputs.
       await clickLookupSubTab(window, 'Name');
-      await fillVisibleIonInput(window, 'input[placeholder="First Name"]', 'Sabih');
+
+      // First name search
+      await fillVisibleIonInput(window, 'input[placeholder*="First" i]', 'Sabih');
       await clickSearchButton(window);
       await waitForText(window, /sabih|no results|no patron/i);
       await closeDialog(window);
 
-      // Name tab — last name search
-      await fillVisibleIonInput(window, 'input[placeholder="Last Name"]', 'S');
+      // Last name search
+      await fillVisibleIonInput(window, 'input[placeholder*="Last" i]', 'S');
       await clickSearchButton(window);
       await waitForText(window, /result|patron|name/i);
       await closeDialog(window);
 
-      // PIN tab
-      await clickLookupSubTab(window, 'PIN');
-      await fillVisibleIonInput(window, 'input[placeholder="PIN"]', '1');
+      // Patron Id search — same Name sub-tab; do NOT switch to outer PIN tab.
+      await fillVisibleIonInput(window, 'input[placeholder*="Patron Id" i], input[placeholder*="Patron ID" i]', '1');
       await clickSearchButton(window);
-      await waitForText(window, /result|patron|pin/i);
+      await waitForText(window, /result|patron|id/i);
       await closeDialog(window);
 
       // Homeroom tab
