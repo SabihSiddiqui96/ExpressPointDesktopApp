@@ -1,6 +1,5 @@
 //Test Link: https://dev.azure.com/Cybersoft-Technologies-Inc/PrimeroEdge%20Classic/_testPlans/define?planId=115128&suiteId=115131
 
-
 import { test, expect, Page } from '@playwright/test';
 import { launchExpressPoint, closeExpressPoint, ExpressPointHandle } from '../../utils/launch';
 import { ensureServiceClosed } from '../../utils/service';

@@ -568,78 +568,45 @@ async function completePatronMealSale(
 }
 
 async function selectRandomPaidPatronItems(window: Page): Promise<string[]> {
+  // Click any visible paid meal-grid item — the menu varies by site/day, so
+  // don't pin ourselves to a specific name like Yemek or Chicken Burger.
+  // Walk a generous list of common item-name patterns; the first one whose
+  // button is visible AND adds to the cart wins.
+  const fallbackPatterns: RegExp[] = [
+    /^Yemek\b/i,
+    /^Chicken Burger$/i,
+    /^Yogurt Milk$/i,
+    /^Ext\. Milk$/i,
+    /^Bread/i,
+    /^Adult Lunch/i,
+    /^Lunch Meal$/i,
+    /^Breakfast Meal$/i,
+    /^Supper Meal$/i,
+    /^Dinner Meal$/i,
+    /^Snack Meal$/i,
+    /^Free Lunch Meal$/i,
+    /Meal$/i,
+    /^Entree/i,
+    /^Fruit$/i,
+    /^Milk$/i,
+    /^Grain$/i,
+    /^Vegetable$/i,
+  ];
+
   for (let attempt = 0; attempt < 3; attempt++) {
-    const yemekItems = await selectRandomYemekItems(window);
-    if (await orderHasSelectedPaidItem(window)) return yemekItems;
+    for (const pattern of fallbackPatterns) {
+      await clearLingeringRestriction(window);
+      const items = await visibleSaleItemLabels(window, pattern);
+      if (items.length === 0) continue;
 
-    await clearLingeringRestriction(window);
-
-    const chickenItems = await selectRandomChickenBurgerItems(window);
-    if (await orderHasSelectedPaidItem(window)) return chickenItems;
-
-    await clearLingeringRestriction(window);
-    const fallbackItems = await selectFallbackPaidItem(window);
-    if (await orderHasSelectedPaidItem(window)) return fallbackItems;
+      const accepted = await clickSaleItemAndCheckAccepted(window, items[0]);
+      if (accepted && await orderHasSelectedPaidItem(window)) {
+        return [items[0]];
+      }
+    }
   }
 
   throw new Error('No paid patron item stayed selected in the order panel.');
-}
-
-async function selectRandomYemekItems(window: Page): Promise<string[]> {
-  await expect.poll(
-    () => visibleSaleItemLabels(window, /^Yemek\b/i).then(items => items.length),
-    { timeout: 20_000 },
-  ).toBeGreaterThanOrEqual(1);
-
-  const availableItems = await visibleSaleItemLabels(window, /^Yemek\b/i);
-  const randomSeed = Date.now();
-  const clickCount = 1 + (randomSeed % 5);
-  const selectedItems: string[] = [];
-
-  for (let i = 0; i < clickCount; i++) {
-    const item = availableItems[(randomSeed + i) % availableItems.length];
-    const accepted = await clickSaleItemAndCheckAccepted(window, item);
-    if (!accepted) {
-      break;
-    }
-
-    selectedItems.push(item);
-  }
-
-  return selectedItems.filter((item, index, all) => all.indexOf(item) === index);
-}
-
-async function selectRandomChickenBurgerItems(window: Page, preferredClickCount?: number): Promise<string[]> {
-  await expect.poll(
-    () => visibleSaleItemLabels(window, /^Chicken Burger$/i).then(items => items.length),
-    { timeout: 20_000 },
-  ).toBeGreaterThanOrEqual(1);
-
-  const [chickenBurger] = await visibleSaleItemLabels(window, /^Chicken Burger$/i);
-  const clickCount = preferredClickCount ?? (1 + (Date.now() % 5));
-  let acceptedCount = 0;
-
-  for (let i = 0; i < clickCount; i++) {
-    const accepted = await clickSaleItemAndCheckAccepted(window, chickenBurger);
-    if (!accepted) break;
-    acceptedCount++;
-  }
-
-  return acceptedCount > 0 ? [chickenBurger] : [];
-}
-
-async function selectFallbackPaidItem(window: Page): Promise<string[]> {
-  const fallbackPatterns = [/^Chicken Burger$/i, /^Yemek - \$5$/i, /^Yemek - \$1$/i, /^Yemek - \.02c$/i, /^Yogurt Milk$/i, /^Ext\. Milk$/i, /^Bread/i, /^Adult Lunch/i, /^Lunch Meal/i];
-
-  for (const pattern of fallbackPatterns) {
-    const items = await visibleSaleItemLabels(window, pattern);
-    if (items.length === 0) continue;
-
-    const accepted = await clickSaleItemAndCheckAccepted(window, items[0]);
-    if (accepted) return [items[0]];
-  }
-
-  throw new Error('No paid patron item could be selected. Every paid fallback was either restricted or did not add to the transaction.');
 }
 
 async function clickSaleItemAndCheckAccepted(window: Page, item: string): Promise<boolean> {
