@@ -7,12 +7,43 @@ async function waitForLoadingOverlay(window: Page): Promise<void> {
 const MEAL_ITEM_TEXT = /Yemek|Chicken Burger|Breakfast Meal|Lunch Meal|Supper Meal|Dinner Meal|Snack Meal|^Extra$|^Fruit$|^Milk$|^Grain$|^Entree$|^Vegetable$|^Side$|^Dessert$|^Supper$/i;
 
 /**
+ * If a "Meal Type" picker modal is currently on screen, dismiss it by clicking
+ * its Close button. Returns true if a modal was dismissed. The modal can sit
+ * on top of an already-populated serving grid, blocking subsequent input on
+ * the patron-ID field.
+ */
+async function dismissMealTypeModalIfOpen(window: Page): Promise<boolean> {
+  const modal = window.locator('ion-modal, ion-alert, [class*="modal" i]')
+    .filter({ hasText: /^[\s\S]*Meal Type[\s\S]*$/i }).first();
+  if (!await modal.isVisible({ timeout: 800 }).catch(() => false)) return false;
+
+  // Prefer the Close button inside the modal.
+  const closeBtn = modal.locator('ion-button, button')
+    .filter({ hasText: /^\s*Close\s*$/i }).first();
+  if (await closeBtn.isVisible({ timeout: 800 }).catch(() => false)) {
+    await closeBtn.click({ force: true }).catch(() => {});
+    await window.waitForTimeout(500);
+    return true;
+  }
+  // Fallback: Escape often dismisses ionic modals.
+  await window.keyboard.press('Escape').catch(() => {});
+  await window.waitForTimeout(500);
+  return true;
+}
+
+/**
  * After-hours runs land on a "select meal type" prompt with no active serving
  * grid — entering an ID then does nothing. Mirrors the robust pattern from
  * transactions.spec.ts (ensureBreakfastMenuVisible) so all tests share one
  * implementation. No-op when a meal grid is already active.
  */
 export async function ensureMealTypeSelected(window: Page): Promise<void> {
+  // If a Meal Type picker modal is sitting on top of an already-populated
+  // serving grid, dismiss it first — otherwise the fast-path below sees the
+  // grid through the modal and returns early, leaving subsequent clicks
+  // blocked by the overlay.
+  await dismissMealTypeModalIfOpen(window);
+
   const mealVisible = await window
     .locator('ion-button')
     .filter({ hasText: MEAL_ITEM_TEXT })

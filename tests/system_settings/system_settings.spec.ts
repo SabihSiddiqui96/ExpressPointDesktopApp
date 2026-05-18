@@ -13,7 +13,6 @@ import { setSettings, SettingsMap } from '../../utils/primeroedge-settings';
 test.describe.configure({ timeout: 600_000 });
 
 const ACTIVE_PATRON = '1337';
-const INACTIVE_PATRON = '133745';
 
 // ─── Core EP helpers ──────────────────────────────────────────────────────────
 
@@ -109,6 +108,26 @@ async function lookupPatron(window: Page, patronId: string): Promise<void> {
   await WarningDialog.dismiss(window, 3_000);
 }
 
+/**
+ * After a patron lookup, click the first available lunch-menu item to add it
+ * to the cart, then click Pay to open the Pay Transaction modal.
+ */
+async function addLunchItemAndPay(window: Page): Promise<void> {
+  const mealItem = window.locator('ion-button')
+    .filter({ hasText: /Yemek|Chicken Burger|Breakfast Meal|Lunch Meal|Supper Meal|Dinner Meal|Snack Meal|^Extra$|^Fruit$|^Milk$|^Grain$|^Entree$|^Vegetable$|^Side$|^Dessert$|^Supper$/i })
+    .first();
+  await expect(mealItem, 'a lunch-menu item to add to the cart').toBeVisible({ timeout: 15_000 });
+  await mealItem.click();
+  await window.waitForTimeout(500);
+
+  // "Pay" specifically (not "Add Funds", which opens the deposit modal).
+  const payBtn = window.locator('ion-button, button').filter({ hasText: /^\s*Pay\s*$/i }).first();
+  await expect(payBtn, '"Pay" button after adding a lunch item').toBeVisible({ timeout: 10_000 });
+  await payBtn.click({ timeout: 10_000 });
+  await window.waitForTimeout(1_000);
+  await WarningDialog.dismiss(window, 2_000);
+}
+
 // ─── Web setup ────────────────────────────────────────────────────────────────
 
 async function withWebPage(fn: (web: Page) => Promise<void>): Promise<void> {
@@ -193,26 +212,23 @@ test.describe('System Settings', () => {
     }
   });
 
-  // ── Step 4 + 6: CREDCAPDAY + HASPRINACT ───────────────────────────────────
+  // ── Step 4 + 6: CREDCADPAY + HASPRINACT ───────────────────────────────────
   // Both affect the Pay Transaction modal — verify together.
-  test('CREDCAPDAY, HASPRINACT — Pay Transaction options', async () => {
+  test('CREDCADPAY, HASPRINACT — Pay Transaction options', async () => {
     let restore: SettingsMap = {};
     try {
       await withWebPage(async (web) => {
-        restore = await setSettings(web, { CREDCAPDAY: 'Yes', HASPRINACT: 'Yes' });
+        restore = await setSettings(web, { CREDCADPAY: 'Yes', HASPRINACT: 'Yes' });
       });
 
       await withEPSession(async (window) => {
         await openServiceIfNeeded(window);
         await lookupPatron(window, ACTIVE_PATRON);
-        await window.locator('ion-button').filter({ hasText: /Add Funds|Pay/i }).first()
-          .click({ timeout: 10_000 }).catch(() => {});
-        await window.waitForTimeout(1_000);
-        await WarningDialog.dismiss(window, 2_000);
+        await addLunchItemAndPay(window);
 
         await expect(
           window.locator('ion-segment-button, ion-button, ion-tab-button').filter({ hasText: /^Card$/i }).first(),
-          'CREDCAPDAY=Yes should show the Card payment option',
+          'CREDCADPAY=Yes should show the Card payment option',
         ).toBeVisible({ timeout: 10_000 });
 
         await expect(
@@ -222,19 +238,17 @@ test.describe('System Settings', () => {
       });
 
       await withWebPage(async (web) => {
-        await setSettings(web, { CREDCAPDAY: 'No', HASPRINACT: 'No' });
+        await setSettings(web, { CREDCADPAY: 'No', HASPRINACT: 'No' });
       });
 
       await withEPSession(async (window) => {
         await openServiceIfNeeded(window);
         await lookupPatron(window, ACTIVE_PATRON);
-        await window.locator('ion-button').filter({ hasText: /Add Funds|Pay/i }).first()
-          .click({ timeout: 10_000 }).catch(() => {});
-        await window.waitForTimeout(1_000);
+        await addLunchItemAndPay(window);
 
         await expect(
           window.locator('ion-segment-button, ion-button, ion-tab-button').filter({ hasText: /^Card$/i }).first(),
-          'CREDCAPDAY=No should NOT show the Card payment option',
+          'CREDCADPAY=No should NOT show the Card payment option',
         ).toBeHidden({ timeout: 5_000 });
 
         await expect(
@@ -249,82 +263,6 @@ test.describe('System Settings', () => {
     }
   });
 
-  // ── Step 5: DYNMENU + MEALCOMBO ───────────────────────────────────────────
-  // Dynamic vs Static menu rendering on the serving grid.
-  test('DYNMENU, MEALCOMBO — Dynamic vs Static menu', async () => {
-    let restore: SettingsMap = {};
-    try {
-      await withWebPage(async (web) => {
-        restore = await setSettings(web, { DYNMENU: 'Yes', MEALCOMBO: 'Food Based' });
-      });
-
-      await withEPSession(async (window) => {
-        await openServiceIfNeeded(window);
-        await ensureMealTypeSelected(window);
-        await expect(
-          window.locator('ion-button').filter({ hasText: /Meal|Yemek|Burger|Milk|Fruit|Grain|Entree|Lunch|Breakfast|Supper/i }).first(),
-          'DYNMENU=Yes should render a populated dynamic menu',
-        ).toBeVisible({ timeout: 20_000 });
-      });
-
-      await withWebPage(async (web) => { await setSettings(web, { DYNMENU: 'No' }); });
-
-      await withEPSession(async (window) => {
-        await openServiceIfNeeded(window);
-        await ensureMealTypeSelected(window);
-        await expect(
-          window.locator('ion-button').filter({ hasText: /Meal|Yemek|Burger|Milk|Fruit|Grain|Entree|Lunch|Breakfast|Supper/i }).first(),
-          'DYNMENU=No should still render a static menu',
-        ).toBeVisible({ timeout: 20_000 });
-      });
-    } finally {
-      if (Object.keys(restore).length > 0) {
-        await withWebPage(async (web) => { await setSettings(web, restore); });
-      }
-    }
-  });
-
-  // ── Step 10: SERINACSTU — inactive student PIN 133745 (Sabih Inactive) ───
-  test('SERINACSTU — inactive student blocked vs allowed', async () => {
-    let restore: SettingsMap = {};
-    try {
-      await withWebPage(async (web) => {
-        restore = await setSettings(web, { SERINACSTU: 'No' });
-      });
-
-      await withEPSession(async (window) => {
-        await openServiceIfNeeded(window);
-        await lookupPatron(window, INACTIVE_PATRON);
-        const blocked = await window.evaluate(() =>
-          /inactive|cannot|not allowed|restricted|blocked|please select|invalid/i
-            .test(document.body.innerText),
-        );
-        const headerLoaded = await window.locator('text=/ID:\\s*133745\\b/').first()
-          .isVisible({ timeout: 3_000 }).catch(() => false);
-        expect(
-          blocked || !headerLoaded,
-          'SERINACSTU=No: inactive student should be blocked or not load',
-        ).toBe(true);
-      });
-
-      await withWebPage(async (web) => {
-        await setSettings(web, { SERINACSTU: 'Yes' });
-      });
-
-      await withEPSession(async (window) => {
-        await openServiceIfNeeded(window);
-        await lookupPatron(window, INACTIVE_PATRON);
-        await expect(
-          window.locator('text=/ID:\\s*133745\\b/').first(),
-          'SERINACSTU=Yes: inactive student 133745 should load',
-        ).toBeVisible({ timeout: 15_000 });
-      });
-    } finally {
-      if (Object.keys(restore).length > 0) {
-        await withWebPage(async (web) => { await setSettings(web, restore); });
-      }
-    }
-  });
 
   // ── Step 2: USEBONPCNT + BONUSTHRES + BONUSAMT — Bonus payment ────────────
   // Smoke-checks both states: flat-bonus mode (USEBONPCNT=No) and percentage

@@ -341,16 +341,39 @@ test.describe('T-111443', () => {
       ).toBe(true);
 
       // ── 6. Wait for the dialog's Close button to become enabled, then click
-      //   it (the dialog never auto-dismisses — the Close click is the only
-      //   way out, even though the close itself is already complete). Scope
-      //   to ion-modal.close-status-modal so we don't accidentally click a
-      //   different "Close" elsewhere on the page.
-      const dialog = window.locator('ion-modal.close-status-modal').first();
-      const dialogCloseBtn = dialog.locator('ion-button, button')
+      //   it (the dialog never auto-dismisses — Close is the only way out
+      //   while offline). Scope to the modal containing "Closing POS
+      //   Terminal" so we don't grab a different "Close" elsewhere. We poll
+      //   the button's actual `disabled`/`aria-disabled` state and force the
+      //   click — Playwright's toBeEnabled() can hang if the button toggles
+      //   via CSS class instead of the disabled attribute.
+      const closeDialog = window.locator('ion-modal')
+        .filter({ hasText: /Closing POS Terminal/i }).first();
+      const closeBtnInDialog = closeDialog.locator('ion-button, button')
         .filter({ hasText: /^\s*Close\s*$/i }).first();
-      await expect(dialogCloseBtn, 'Close button inside Closing POS Terminal dialog')
-        .toBeEnabled({ timeout: 120_000 });
-      await dialogCloseBtn.click();
+
+      console.log('Waiting for Closing POS Terminal Close button to become active...');
+      await expect.poll(
+        async () => {
+          return await closeBtnInDialog.evaluate(el => {
+            const e = el as HTMLButtonElement;
+            if (e.disabled) return false;
+            if (el.hasAttribute('disabled')) return false;
+            if (el.getAttribute('aria-disabled') === 'true') return false;
+            // Some Ionic builds wrap a real <button> inside ion-button; check.
+            const inner = el.querySelector('button');
+            if (inner && (inner.disabled || inner.hasAttribute('disabled'))) return false;
+            // CSS class fallback — when EP styles the button as disabled.
+            if ((el.className ?? '').match(/\bdisabled\b/i)) return false;
+            return true;
+          }).catch(() => false);
+        },
+        { timeout: 180_000, intervals: [1_000] },
+      ).toBe(true);
+
+      console.log('Close button is active — clicking.');
+      await closeBtnInDialog.click({ force: true });
+      await window.waitForTimeout(1_000);
       await waitForLoadingOverlay(window);
 
       // ── 7. Re-enable the network and let EP sync the offline session up to
