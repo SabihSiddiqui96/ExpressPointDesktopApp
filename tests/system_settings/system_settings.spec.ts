@@ -120,12 +120,48 @@ async function addLunchItemAndPay(window: Page): Promise<void> {
   await mealItem.click();
   await window.waitForTimeout(500);
 
+  // Clicking a meal can pop a CONFIRM dialog ("This is a SECOND MEAL. Do you
+  // want to continue?") — answer Yes to keep the item in the order. Loop so
+  // multiple chained confirms are all handled.
+  await clickYesOnVisibleConfirms(window);
+
   // "Pay" specifically (not "Add Funds", which opens the deposit modal).
   const payBtn = window.locator('ion-button, button').filter({ hasText: /^\s*Pay\s*$/i }).first();
   await expect(payBtn, '"Pay" button after adding a lunch item').toBeVisible({ timeout: 10_000 });
   await payBtn.click({ timeout: 10_000 });
-  await window.waitForTimeout(1_000);
-  await WarningDialog.dismiss(window, 2_000);
+
+  // Wait for the Pay Transaction modal to actually render before returning —
+  // otherwise downstream visibility checks (Card / Use Principal Account) can
+  // fire too early and miss the segment buttons.
+  await expect(
+    window.getByText(/Pay Transaction/i).first(),
+    'Pay Transaction modal should open after clicking Pay',
+  ).toBeVisible({ timeout: 15_000 });
+  await window.waitForTimeout(500);
+  await WarningDialog.dismiss(window, 1_000);
+}
+
+/**
+ * Click YES on every visible ion-alert that has a YES button, looping until
+ * none remain. Used to clear chained CONFIRM dialogs (e.g. "This is a SECOND
+ * MEAL", "Are you sure?", etc.) after an action that can trigger them.
+ */
+async function clickYesOnVisibleConfirms(window: Page, maxAttempts = 5): Promise<void> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const clicked = await window.evaluate(() => {
+      const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+      const alerts = Array.from(document.querySelectorAll<HTMLElement>('ion-alert')).filter(visible);
+      for (const alert of alerts) {
+        const root: ShadowRoot | HTMLElement = (alert as any).shadowRoot ?? alert;
+        const yes = Array.from(root.querySelectorAll<HTMLElement>('.alert-button, button'))
+          .find(b => /^\s*yes\s*$/i.test(b.innerText ?? b.textContent ?? ''));
+        if (yes) { yes.click(); return true; }
+      }
+      return false;
+    }).catch(() => false);
+    if (!clicked) return;
+    await window.waitForTimeout(400);
+  }
 }
 
 // ─── Web setup ────────────────────────────────────────────────────────────────
@@ -227,7 +263,7 @@ test.describe('System Settings', () => {
         await addLunchItemAndPay(window);
 
         await expect(
-          window.locator('ion-segment-button, ion-button, ion-tab-button').filter({ hasText: /^Card$/i }).first(),
+          window.locator('ion-segment-button, ion-tab-button').filter({ hasText: /\bCard\b/i }).first(),
           'CREDCADPAY=Yes should show the Card payment option',
         ).toBeVisible({ timeout: 10_000 });
 
@@ -247,7 +283,7 @@ test.describe('System Settings', () => {
         await addLunchItemAndPay(window);
 
         await expect(
-          window.locator('ion-segment-button, ion-button, ion-tab-button').filter({ hasText: /^Card$/i }).first(),
+          window.locator('ion-segment-button, ion-tab-button').filter({ hasText: /\bCard\b/i }).first(),
           'CREDCADPAY=No should NOT show the Card payment option',
         ).toBeHidden({ timeout: 5_000 });
 

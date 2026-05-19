@@ -110,31 +110,42 @@ async function clickMenuItem(window: Page, label: string): Promise<void> {
     return !!item;
   }, label);
   expect(clicked).toBe(true);
-  await window.evaluate(async () => {
-    const menu = document.querySelector('ion-menu') as any;
-    if (!menu?.close) return;
-    await Promise.race([
-      menu.close(),
-      new Promise(resolve => setTimeout(resolve, 1_000)),
-    ]);
-  }).catch(() => { });
-  await window.keyboard.press('Escape').catch(() => { });
-  await window.mouse.click(500, 500).catch(() => { });
+  // Polling close: a "you have a session from yesterday" warning can interrupt
+  // the auto-close after a menu click, leaving ion-menu open and intercepting
+  // pointer events. closeSideMenuIfOpen retries until the show-menu class is
+  // gone (also dismissing any blocking warning).
+  await closeSideMenuIfOpen(window);
   await waitForLoadingOverlay(window);
-  // Every page navigation can trigger the Square Authorization Warning.
   await WarningDialog.dismiss(window, 3_000);
 }
 
 async function closeSideMenuIfOpen(window: Page): Promise<void> {
-  await window.evaluate(async () => {
-    const menu = document.querySelector('ion-menu') as any;
-    if (!menu?.close) return;
-    await Promise.race([
-      menu.close(),
-      new Promise(resolve => setTimeout(resolve, 1_000)),
-    ]);
-  }).catch(() => { });
-  await window.keyboard.press('Escape').catch(() => { });
+  // Poll until the side menu's `show-menu` class is gone. A single menu.close()
+  // race isn't enough if a warning dialog opens while the menu is being
+  // dismissed — the close call gets blocked and the menu stays open,
+  // intercepting all subsequent pointer events.
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const stillOpen = await window.evaluate(() => {
+      const menu = document.querySelector<HTMLElement>('ion-menu');
+      return !!menu?.classList.contains('show-menu');
+    }).catch(() => false);
+    if (!stillOpen) return;
+
+    // 1. Dismiss any warning dialog blocking the close.
+    await WarningDialog.dismiss(window, 800).catch(() => { });
+
+    // 2. Ask Ionic to close the menu.
+    await window.evaluate(async () => {
+      const menu = document.querySelector('ion-menu') as any;
+      if (!menu?.close) return;
+      await Promise.race([menu.close(), new Promise(r => setTimeout(r, 800))]);
+    }).catch(() => { });
+
+    // 3. Escape + click outside the menu region as fallback.
+    await window.keyboard.press('Escape').catch(() => { });
+    await window.mouse.click(900, 400).catch(() => { });
+    await window.waitForTimeout(300);
+  }
 }
 
 async function clickIonButton(window: Page, label: string | RegExp): Promise<void> {
@@ -241,6 +252,14 @@ async function clickVisibleIonItem(window: Page, label: RegExp): Promise<void> {
 
 async function navigateToSummarySale(window: Page): Promise<void> {
   await waitForLoadingOverlay(window);
+  // The previous step (openServiceFromMenuIfAvailable) may have left the
+  // hamburger menu open if a "session from yesterday" warning interrupted
+  // its close — clear it before reaching for the dashboard item.
+  await closeSideMenuIfOpen(window);
+  // The yesterday-session warning can pop up asynchronously after the menu
+  // closes. Loop dismissing until no ion-alert is on screen.
+  await dismissAllIonAlerts(window);
+
   const dashboardItem = window
     .locator('ion-router-outlet .ion-page:not(.ion-page-hidden) ion-item[detail]')
     .filter({ hasText: /Summary Sale/i })
@@ -254,6 +273,35 @@ async function navigateToSummarySale(window: Page): Promise<void> {
   }
 
   await waitForText(window, /Summary Sales?|Go to Summary Sale|Select a Meal Type/i);
+}
+
+/**
+ * Click the primary button on every visible ion-alert, looping until no alerts
+ * remain on screen (or maxAttempts is reached). Broader than
+ * WarningDialog.dismiss — accepts OK / Continue / Got it / Yes / Done / Close
+ * and falls back to clicking the first button in the alert.
+ */
+async function dismissAllIonAlerts(window: Page, maxAttempts = 8): Promise<void> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const dismissed = await window.evaluate(() => {
+      const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+      const alerts = Array.from(document.querySelectorAll<HTMLElement>('ion-alert')).filter(visible);
+      if (alerts.length === 0) return false;
+
+      for (const alert of alerts) {
+        const root: ShadowRoot | HTMLElement = (alert as any).shadowRoot ?? alert;
+        const buttons = Array.from(root.querySelectorAll<HTMLElement>('.alert-button, button'));
+        const primary = buttons.find(b =>
+          /^\s*(ok|continue|got it|yes|done|close)\s*$/i.test(b.innerText ?? b.textContent ?? ''));
+        const target = primary ?? buttons[0];
+        if (target) { target.click(); return true; }
+      }
+      return false;
+    }).catch(() => false);
+
+    if (!dismissed) return;
+    await window.waitForTimeout(400);
+  }
 }
 
 async function expectDashboard(window: Page): Promise<void> {
@@ -291,24 +339,36 @@ async function openSummarySaleSession(window: Page): Promise<void> {
     await clickIonButton(window, /Go to Summary Sale/i);
   }
 
+  // "Go to Summary Sale" can also surface the yesterday-session warning.
+  await dismissAllIonAlerts(window);
+  await waitForLoadingOverlay(window);
+
   await waitForText(window, /Select a Meal Type|Summary Sale/i);
 }
 
 async function openServiceFromMenuIfAvailable(window: Page): Promise<void> {
   await clickMenuItem(window, 'Open Service|Continue Service');
-  await WarningDialog.dismiss(window);
+  // The yesterday-session warning can appear after Open Service or Continue
+  // Service — keep dismissing until no ion-alert remains.
+  await dismissAllIonAlerts(window);
 
   const openingBalance = window.locator('#openingBalance');
   if (await openingBalance.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    await WarningDialog.dismiss(window);
+    await dismissAllIonAlerts(window);
     await clickIonButton(window, /Open Service|Continue Service|Go to Summary Sale/i);
+    await dismissAllIonAlerts(window);
   }
 
   await waitForLoadingOverlay(window);
-  await WarningDialog.dismiss(window);
+  await dismissAllIonAlerts(window);
 }
 
 async function chooseFromPopover(window: Page, triggerText: string | RegExp, optionText: string): Promise<void> {
+  // The yesterday-session warning (and any other ion-alert) can still be
+  // sitting on top here — clear it before reaching for the trigger.
+  await dismissAllIonAlerts(window);
+  await waitForLoadingOverlay(window);
+
   await window.getByText(triggerText, { exact: false }).first().click({ timeout: 10_000 });
   const popover = window.locator('ion-popover');
   await expect(popover).toBeVisible({ timeout: 10_000 });

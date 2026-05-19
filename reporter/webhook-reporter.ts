@@ -86,28 +86,35 @@ class WebhookReporter implements Reporter {
     const failed = failedTests.length;
     const skipped = skippedTests.length;
     const total = this.tests.length;
-    const formatTestLines = (prefix: string, tests: TestRecord[]) =>
-      uniqueSpecTitles(tests).map(title => `${prefix} ${title}`).join('\n');
+    const passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
+    const duration = formatDuration(Date.now() - this.startTime);
 
-    const summaryLines = [
-      `Passed: ${passed}`,
-      `Failed: ${failed}`,
-      `Total: ${total}`,
-      skipped > 0 ? `Skipped: ${skipped}` : null,
+    // Pad labels so colons line up; right-align numbers in a 2-char field.
+    const padLabel = (label: string) => `${label}:`.padEnd(9, ' ');
+    const padNum   = (n: number) => n.toString().padStart(2, ' ');
+
+    const statLines = [
+      `✅ ${padLabel('Passed')} ${padNum(passed)} (${passRate}%)`,
+      `❌ ${padLabel('Failed')} ${padNum(failed)}`,
+      skipped > 0 ? `⏸ ${padLabel('Skipped')} ${padNum(skipped)}` : null,
+      `📊 ${padLabel('Total')} ${padNum(total)}`,
+      `⏱ ${padLabel('Duration')} ${duration}`,
     ].filter(Boolean);
 
-    const detailLines = [
-      failed > 0 ? `Failed Tests:\n${formatTestLines('Failed:', failedTests)}` : null,
-      skipped > 0 ? `Skipped Tests:\n${formatTestLines('Skipped:', skippedTests)}` : null,
+    const formatTestLines = (tests: TestRecord[]) =>
+      uniqueSpecTitles(tests).map(title => `  • ${title}`).join('\n');
+
+    const detailBlocks = [
+      failed > 0 ? `Failed Tests:\n${formatTestLines(failedTests)}` : null,
+      skipped > 0 ? `Skipped Tests:\n${formatTestLines(skippedTests)}` : null,
     ].filter(Boolean);
 
     const message = {
       title: [
-        'ExpressPoint Automation completed. Below are the results:',
+        'ExpressPoint Regression Tests Completed. See results below.',
         '',
-        ...summaryLines,
-        '',
-        ...detailLines,
+        ...statLines,
+        ...(detailBlocks.length > 0 ? ['', ...detailBlocks] : []),
       ].join('\n'),
     };
 
@@ -142,6 +149,16 @@ function stripAutomationTag(title: string): string {
 
 function uniqueSpecTitles(tests: TestRecord[]): string[] {
   return [...new Set(tests.map(t => t.specTitle))];
+}
+
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
 }
 
 function postJson(endpoint: string, body: unknown): Promise<void> {

@@ -36,14 +36,16 @@ export async function setSettings(webPage: Page, settings: SettingsMap): Promise
   // Process each setting one at a time: locate its row, scroll it into view,
   // toggle/select/fill the value, then move on to the next. Save once at the end.
   for (const [name, target] of Object.entries(settings)) {
-    // 1. Scroll the row containing the setting code into view.
-    await webPage.evaluate((code: string) => {
-      const row = Array.from(document.querySelectorAll<HTMLTableRowElement>('tr'))
-        .find(tr => Array.from(tr.querySelectorAll('td'))
-          .some(td => td.innerText?.trim() === code));
-      row?.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior });
-    }, name);
-    await webPage.waitForTimeout(150);
+    // 1. Locate the row containing the setting code. The grid lazy-renders
+    //    rows as you scroll, so a single scrollIntoView only works if the
+    //    row is already in the DOM. Walk the page top-to-bottom until the
+    //    row appears, then scroll it to center.
+    const found = await scrollUntilSettingFound(webPage, name);
+    if (!found) {
+      // Best-effort: scroll back to top so the next setting starts fresh.
+      await webPage.evaluate(() => window.scrollTo(0, 0));
+      await webPage.waitForTimeout(150);
+    }
 
     // 2. Detect input kind + capture previous value + apply the change.
     const result = await webPage.evaluate(
@@ -137,4 +139,43 @@ export async function setSettings(webPage: Page, settings: SettingsMap): Promise
     .toBeVisible({ timeout: 30_000 });
 
   return previous;
+}
+
+/**
+ * The Manage Settings grid lazy-renders rows as you scroll, so a single
+ * scroll-to-bottom doesn't guarantee a given setting's row is in the DOM at
+ * search time. Walk top-to-bottom in increments, checking after each scroll
+ * whether the target code's row has appeared. Returns true if found (and
+ * centers it), false if we hit the bottom without finding it.
+ */
+async function scrollUntilSettingFound(webPage: Page, code: string): Promise<boolean> {
+  // Try top first — many settings render immediately.
+  await webPage.evaluate(() => window.scrollTo(0, 0));
+  await webPage.waitForTimeout(100);
+
+  const STEP = 600;
+  const MAX_STEPS = 50;
+  for (let i = 0; i < MAX_STEPS; i++) {
+    const result = await webPage.evaluate((c: string) => {
+      const row = Array.from(document.querySelectorAll<HTMLTableRowElement>('tr'))
+        .find(tr => Array.from(tr.querySelectorAll('td'))
+          .some(td => td.innerText?.trim() === c));
+      if (row) {
+        row.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior });
+        return { found: true, atBottom: false };
+      }
+      const atBottom = (window.innerHeight + window.scrollY) >= document.body.scrollHeight - 5;
+      return { found: false, atBottom };
+    }, code);
+
+    if (result.found) {
+      await webPage.waitForTimeout(150);
+      return true;
+    }
+    if (result.atBottom) return false;
+
+    await webPage.evaluate((step: number) => window.scrollBy(0, step), STEP);
+    await webPage.waitForTimeout(150);
+  }
+  return false;
 }
