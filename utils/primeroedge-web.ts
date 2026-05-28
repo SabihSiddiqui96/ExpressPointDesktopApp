@@ -13,12 +13,26 @@ export type ReconciliationSessionValues = {
 };
 
 export async function loginToPrimeroEdgeQa(page: Page): Promise<void> {
-  await page.goto(`${PRIMEROEDGE_QA_URL}/login.aspx`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   const username = page.locator('#UserNameTextBox');
-  if (!await username.isVisible({ timeout: 30_000 }).catch(() => false)) {
-    await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
+
+  // Retry the navigation a few times — QA can return ERR_CONNECTION_RESET
+  // intermittently, and a single reload isn't always enough.
+  let ready = false;
+  for (let attempt = 0; attempt < 4 && !ready; attempt++) {
+    try {
+      await page.goto(`${PRIMEROEDGE_QA_URL}/login.aspx`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    } catch {
+      // Network failure — wait and retry.
+      await page.waitForTimeout(2_000);
+      continue;
+    }
+    ready = await username.isVisible({ timeout: 15_000 }).catch(() => false);
+    if (!ready) {
+      await page.waitForTimeout(1_500);
+    }
   }
-  await expect(username).toBeVisible({ timeout: 30_000 });
+
+  await expect(username, 'PrimeroEdge login page should load #UserNameTextBox').toBeVisible({ timeout: 15_000 });
   await page.locator('#UserNameTextBox').fill(PRIMEROEDGE_USERNAME);
   await page.locator('#PasswordTextBox').fill(PRIMEROEDGE_PASSWORD);
   await page.locator('#LoginButton').click();

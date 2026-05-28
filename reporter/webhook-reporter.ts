@@ -26,12 +26,24 @@ class WebhookReporter implements Reporter {
   private readonly rcWebhookUrl: string;
   private readonly mode: string;
   private readonly webhookEnabled: boolean;
+  // Rerun context (set by the `fixtests` command when re-running previously
+  // failed tests). When active, the start/finish messages switch to the
+  // "re-running N previously failed test(s)" wording and the finish totals are
+  // MERGED back into the original suite total instead of just the rerun subset.
+  private readonly rerunMode: boolean;
+  private readonly baselineTotal: number;
 
   constructor() {
     this.rcWebhookUrl = process.env.RINGCENTRAL_WEBHOOK_URL ?? '';
     this.mode = (process.env.TEST_MODE ?? 'qa').toLowerCase();
     // Webhook only fires for regression runs. QA / dev iteration stays silent.
     this.webhookEnabled = this.mode === 'regression';
+    // RERUN_MODE truthy → fixtests rerun. RERUN_BASELINE_TOTAL = the original
+    // run's total test count, so we can report merged suite totals.
+    const rerunFlag = (process.env.RERUN_MODE ?? '').toLowerCase();
+    this.rerunMode = rerunFlag !== '' && rerunFlag !== '0' && rerunFlag !== 'false';
+    const parsedBaseline = parseInt(process.env.RERUN_BASELINE_TOTAL ?? '', 10);
+    this.baselineTotal = Number.isFinite(parsedBaseline) ? parsedBaseline : 0;
   }
 
   async onBegin(_config: FullConfig, suite: Suite): Promise<void> {
@@ -47,13 +59,21 @@ class WebhookReporter implements Reporter {
 
     const totalTests = suite.allTests().length;
 
-    const message = {
-      title: [
-        '🚀 ExpressPoint Automation started on Sabih\'s local machine',
-        'Results will be posted once tests complete.... ',
-      ].join('\n'),
-      body: `Tests queued: ${totalTests}`,
-    };
+    const message = this.rerunMode
+      ? {
+          title: [
+            `🔁 Re-running ${totalTests} previously failed test(s) on Sabih's local machine`,
+            'Updated results will be posted once the re-run completes.... ',
+          ].join('\n'),
+          body: this.baselineTotal > 0 ? `Original suite total: ${this.baselineTotal}` : '',
+        }
+      : {
+          title: [
+            '🚀 ExpressPoint Automation started on Sabih\'s local machine',
+            'Results will be posted once tests complete.... ',
+          ].join('\n'),
+          body: `Tests queued: ${totalTests}`,
+        };
 
     try {
       await postJson(this.rcWebhookUrl, message);
@@ -93,30 +113,34 @@ class WebhookReporter implements Reporter {
     const padLabel = (label: string) => `${label}:`.padEnd(9, ' ');
     const padNum   = (n: number) => n.toString().padStart(2, ' ');
 
-    const statLines = [
-      `✅ ${padLabel('Passed')} ${padNum(passed)} (${passRate}%)`,
-      `❌ ${padLabel('Failed')} ${padNum(failed)}`,
-      skipped > 0 ? `⏸ ${padLabel('Skipped')} ${padNum(skipped)}` : null,
-      `📊 ${padLabel('Total')} ${padNum(total)}`,
-      `⏱ ${padLabel('Duration')} ${duration}`,
-    ].filter(Boolean);
-
     const formatTestLines = (tests: TestRecord[]) =>
       uniqueSpecTitles(tests).map(title => `  • ${title}`).join('\n');
 
-    const detailBlocks = [
-      failed > 0 ? `Failed Tests:\n${formatTestLines(failedTests)}` : null,
-      skipped > 0 ? `Skipped Tests:\n${formatTestLines(skippedTests)}` : null,
-    ].filter(Boolean);
+    const message = this.rerunMode
+      ? this.buildRerunMessage({ reran: total, stillFailing: failed, failedTests, duration, padLabel, padNum, formatTestLines })
+      : (() => {
+          const statLines = [
+            `✅ ${padLabel('Passed')} ${padNum(passed)} (${passRate}%)`,
+            `❌ ${padLabel('Failed')} ${padNum(failed)}`,
+            skipped > 0 ? `⏸ ${padLabel('Skipped')} ${padNum(skipped)}` : null,
+            `📊 ${padLabel('Total')} ${padNum(total)}`,
+            `⏱ ${padLabel('Duration')} ${duration}`,
+          ].filter(Boolean);
 
-    const message = {
-      title: [
-        'ExpressPoint Regression Tests Completed. See results below.',
-        '',
-        ...statLines,
-        ...(detailBlocks.length > 0 ? ['', ...detailBlocks] : []),
-      ].join('\n'),
-    };
+          const detailBlocks = [
+            failed > 0 ? `Failed Tests:\n${formatTestLines(failedTests)}` : null,
+            skipped > 0 ? `Skipped Tests:\n${formatTestLines(skippedTests)}` : null,
+          ].filter(Boolean);
+
+          return {
+            title: [
+              'ExpressPoint Regression Tests Completed. See results below.',
+              '',
+              ...statLines,
+              ...(detailBlocks.length > 0 ? ['', ...detailBlocks] : []),
+            ].join('\n'),
+          };
+        })();
 
     try {
       await postJson(this.rcWebhookUrl, message);
@@ -124,6 +148,56 @@ class WebhookReporter implements Reporter {
     } catch (err) {
       console.error(`\n[webhook-reporter] Failed to send to RingCentral: ${(err as Error).message}`);
     }
+  }
+
+  // Builds the `fixtests` rerun finish message: shows how many were re-run /
+  // recovered / still failing, then the MERGED suite totals (Total = original
+  // suite total, Failed = still failing, Passed = Total − Failed).
+  private buildRerunMessage(args: {
+    reran: number;
+    stillFailing: number;
+    failedTests: TestRecord[];
+    duration: string;
+    padLabel: (label: string) => string;
+    padNum: (n: number) => string;
+    formatTestLines: (tests: TestRecord[]) => string;
+  }): { title: string } {
+    const { reran, stillFailing, failedTests, duration, padLabel, padNum, formatTestLines } = args;
+    const recovered = reran - stillFailing;
+    // Fall back to the rerun subset total if no baseline was provided.
+    const mergedTotal = this.baselineTotal > 0 ? this.baselineTotal : reran;
+    const mergedFailed = stillFailing;
+    const mergedPassed = mergedTotal - mergedFailed;
+    const passRate = mergedTotal > 0 ? Math.round((mergedPassed / mergedTotal) * 100) : 0;
+
+    const rerunLines = [
+      `🔁 ${padLabel('Re-ran')} ${padNum(reran)}`,
+      `✅ ${padLabel('Recovered')} ${padNum(recovered)}`,
+      `❌ ${padLabel('Still')} ${padNum(stillFailing)}`,
+    ];
+
+    const totalLines = [
+      `✅ ${padLabel('Passed')} ${padNum(mergedPassed)} (${passRate}%)`,
+      `❌ ${padLabel('Failed')} ${padNum(mergedFailed)}`,
+      `📊 ${padLabel('Total')} ${padNum(mergedTotal)}`,
+      `⏱ ${padLabel('Duration')} ${duration}`,
+    ];
+
+    const detailBlocks = stillFailing > 0
+      ? ['', `Still Failing:\n${formatTestLines(failedTests)}`]
+      : [];
+
+    return {
+      title: [
+        'ExpressPoint Regression — previously failed test(s) re-run. See updated results below.',
+        '',
+        ...rerunLines,
+        '',
+        'Updated suite totals:',
+        ...totalLines,
+        ...detailBlocks,
+      ].join('\n'),
+    };
   }
 }
 

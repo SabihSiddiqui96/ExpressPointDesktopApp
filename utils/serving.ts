@@ -35,7 +35,13 @@ async function dismissMealTypeModalIfOpen(window: Page): Promise<boolean> {
  * After-hours runs land on a "select meal type" prompt with no active serving
  * grid — entering an ID then does nothing. Mirrors the robust pattern from
  * transactions.spec.ts (ensureBreakfastMenuVisible) so all tests share one
- * implementation. No-op when a meal grid is already active.
+ * implementation.
+ *
+ * Always forces the meal type to "Lunch" (clicking through the picker and
+ * confirming any "Switch meal type?" alert) so tests are not subject to which
+ * meal period EP is currently in. After-hours, EP defaults to Supper/Dinner
+ * with a different menu, which causes downstream tests that expect Lunch
+ * items to fail.
  */
 export async function ensureMealTypeSelected(window: Page): Promise<void> {
   // If a Meal Type picker modal is sitting on top of an already-populated
@@ -44,13 +50,26 @@ export async function ensureMealTypeSelected(window: Page): Promise<void> {
   // blocked by the overlay.
   await dismissMealTypeModalIfOpen(window);
 
+  // Fast-path: only skip when the top toolbar already shows "Lunch" AND a
+  // meal grid is visible. Otherwise (e.g. on Supper after school hours), we
+  // need to switch to Lunch.
+  const onLunchAlready = await window.evaluate(() => {
+    const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight);
+    return Array.from(document.querySelectorAll<HTMLElement>('ion-button, button'))
+      .filter(visible)
+      .some(el => {
+        const rect = el.getBoundingClientRect();
+        return rect.top < 90 && (el.innerText ?? '').trim() === 'Lunch';
+      });
+  });
+
   const mealVisible = await window
     .locator('ion-button')
     .filter({ hasText: MEAL_ITEM_TEXT })
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);
-  if (mealVisible) return;
+  if (onLunchAlready && mealVisible) return;
 
   // Click the meal-type widget in the top toolbar.
   const opened = await window.evaluate(() => {
@@ -100,10 +119,17 @@ export async function ensureMealTypeSelected(window: Page): Promise<void> {
   }
   await window.waitForTimeout(500);
 
-  // Confirm via Yes alert if the app prompts.
-  await window.locator('ion-alert button, .alert-button')
-    .filter({ hasText: /^yes$/i }).first()
-    .click({ timeout: 3_000 }).catch(() => {});
+  // Confirm via Yes/OK alert if the app prompts (switching meal types can
+  // trigger a "Switch meal type?" or "Are you sure?" alert).
+  for (let i = 0; i < 3; i++) {
+    const dismissed = await window.locator('ion-alert button, .alert-button')
+      .filter({ hasText: /^\s*(yes|ok|continue)\s*$/i }).first()
+      .click({ timeout: 1_500 })
+      .then(() => true)
+      .catch(() => false);
+    if (!dismissed) break;
+    await window.waitForTimeout(300);
+  }
 
   // Verify the serving grid is now populated.
   await window.locator('ion-button').filter({ hasText: MEAL_ITEM_TEXT }).first()

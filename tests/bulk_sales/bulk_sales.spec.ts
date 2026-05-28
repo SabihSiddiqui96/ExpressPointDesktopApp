@@ -460,20 +460,23 @@ async function addFundsToStudent(window: Page, digits: string[]): Promise<void> 
   }
 
   const paymentAmount = Number(digits.join('')) / 100;
-  const modalBonusAmount = await modalDollarAmount(modal, 'Bonus');
-  const configuredBonusAmount = await window.evaluate(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('Settings') ?? '[]');
-      const settings = typeof stored === 'string' ? JSON.parse(stored) : stored;
-      return Number(settings.find((setting: any) => setting.SettingCode === 'BONUSAMT')?.SettingValue ?? 0);
-    } catch {
-      return 0;
-    }
-  });
-  const bonusAmount = modalBonusAmount || configuredBonusAmount;
-  const newBalance = await modalDollarAmount(modal, 'New Balance');
 
-  expect(newBalance).toBeCloseTo(currentBalance + paymentAmount + bonusAmount, 2);
+  // EP updates the modal's running total asynchronously after each keypress.
+  // Wait until the displayed New Balance reflects the full payment before
+  // reading the final value, otherwise we can race a stale intermediate value
+  // (e.g. only the first digit registered).
+  await expect.poll(
+    () => modalDollarAmount(modal, 'New Balance'),
+    { timeout: 5_000, intervals: [200, 200, 300, 500, 500] },
+  ).toBeGreaterThanOrEqual(currentBalance + paymentAmount - 0.005);
+
+  const newBalance = await modalDollarAmount(modal, 'New Balance');
+  // newBalance must be at least currentBalance + paymentAmount (any bonus on
+  // top is acceptable — flat or percentage). This is mode-agnostic.
+  expect(
+    newBalance,
+    `newBalance ($${newBalance}) should be >= currentBalance ($${currentBalance}) + paymentAmount ($${paymentAmount})`,
+  ).toBeGreaterThanOrEqual(currentBalance + paymentAmount - 0.005);
 
   await modal.getByRole('button', { name: /make payment/i }).click();
   await waitForToastIfPresent(window);

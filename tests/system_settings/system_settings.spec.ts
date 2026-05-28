@@ -113,10 +113,14 @@ async function lookupPatron(window: Page, patronId: string): Promise<void> {
  * to the cart, then click Pay to open the Pay Transaction modal.
  */
 async function addLunchItemAndPay(window: Page): Promise<void> {
+  // The same single-word labels (Supper, Lunch, Extra, etc.) appear BOTH as
+  // the meal-type selector in the top toolbar AND as actual meal items in the
+  // grid. .last() reliably picks the grid item, since the toolbar selector
+  // comes first in DOM order.
   const mealItem = window.locator('ion-button')
     .filter({ hasText: /Yemek|Chicken Burger|Breakfast Meal|Lunch Meal|Supper Meal|Dinner Meal|Snack Meal|^Extra$|^Fruit$|^Milk$|^Grain$|^Entree$|^Vegetable$|^Side$|^Dessert$|^Supper$/i })
-    .first();
-  await expect(mealItem, 'a lunch-menu item to add to the cart').toBeVisible({ timeout: 15_000 });
+    .last();
+  await expect(mealItem, 'a meal-grid item to add to the cart').toBeVisible({ timeout: 15_000 });
   await mealItem.click();
   await window.waitForTimeout(500);
 
@@ -125,18 +129,23 @@ async function addLunchItemAndPay(window: Page): Promise<void> {
   // multiple chained confirms are all handled.
   await clickYesOnVisibleConfirms(window);
 
-  // "Pay" specifically (not "Add Funds", which opens the deposit modal).
+  // "Pay" specifically (not "Add Funds", which opens the deposit modal). When
+  // the patron has prior transactions today, Pay can sometimes need 2 clicks
+  // (a confirm intervenes, eats the first click). Retry until the Pay
+  // Transaction modal actually appears.
   const payBtn = window.locator('ion-button, button').filter({ hasText: /^\s*Pay\s*$/i }).first();
-  await expect(payBtn, '"Pay" button after adding a lunch item').toBeVisible({ timeout: 10_000 });
-  await payBtn.click({ timeout: 10_000 });
+  const modalText = window.getByText(/Pay Transaction/i).first();
 
-  // Wait for the Pay Transaction modal to actually render before returning —
-  // otherwise downstream visibility checks (Card / Use Principal Account) can
-  // fire too early and miss the segment buttons.
-  await expect(
-    window.getByText(/Pay Transaction/i).first(),
-    'Pay Transaction modal should open after clicking Pay',
-  ).toBeVisible({ timeout: 15_000 });
+  let modalOpen = false;
+  for (let attempt = 0; attempt < 3 && !modalOpen; attempt++) {
+    await clickYesOnVisibleConfirms(window);
+    if (await payBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await payBtn.click({ timeout: 10_000 }).catch(() => { });
+    }
+    await clickYesOnVisibleConfirms(window);
+    modalOpen = await modalText.isVisible({ timeout: 8_000 }).catch(() => false);
+  }
+  expect(modalOpen, 'Pay Transaction modal should open after clicking Pay').toBe(true);
   await window.waitForTimeout(500);
   await WarningDialog.dismiss(window, 1_000);
 }
