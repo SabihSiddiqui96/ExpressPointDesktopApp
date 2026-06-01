@@ -224,7 +224,10 @@ async function completeLunchTransaction(window: Page): Promise<void> {
   const haslunchMeal = await mealButton.isVisible({ timeout: 3_000 }).catch(() => false);
   const target = haslunchMeal ? mealButton : anyMeal;
   await expect(target).toBeVisible({ timeout: 10_000 });
-  await target.click();
+  // Bound the click: actionTimeout is 0 (wait forever) in config, so if a
+  // leftover Meal Type picker overlay covers this button the click would
+  // otherwise stall until the test's hard timeout instead of failing fast.
+  await target.click({ timeout: 15_000 });
   // Dismiss "SECOND MEAL" confirmation if it appears
   await window.locator('ion-alert button, .alert-button')
     .filter({ hasText: /^yes$/i })

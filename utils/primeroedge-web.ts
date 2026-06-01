@@ -18,21 +18,25 @@ export async function loginToPrimeroEdgeQa(page: Page): Promise<void> {
   // Retry the navigation a few times — QA can return ERR_CONNECTION_RESET
   // intermittently, and a single reload isn't always enough.
   let ready = false;
-  for (let attempt = 0; attempt < 4 && !ready; attempt++) {
+  for (let attempt = 0; attempt < 6 && !ready; attempt++) {
     try {
       await page.goto(`${PRIMEROEDGE_QA_URL}/login.aspx`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
     } catch {
       // Network failure — wait and retry.
-      await page.waitForTimeout(2_000);
+      await page.waitForTimeout(3_000);
       continue;
     }
     ready = await username.isVisible({ timeout: 15_000 }).catch(() => false);
     if (!ready) {
-      await page.waitForTimeout(1_500);
+      // domcontentloaded fired but the login form never painted (QA returns a
+      // blank/partial page under ERR_CONNECTION_RESET storms after hours).
+      // Reload before the next attempt.
+      await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+      await page.waitForTimeout(3_000);
     }
   }
 
-  await expect(username, 'PrimeroEdge login page should load #UserNameTextBox').toBeVisible({ timeout: 15_000 });
+  await expect(username, 'PrimeroEdge login page should load #UserNameTextBox').toBeVisible({ timeout: 20_000 });
   await page.locator('#UserNameTextBox').fill(PRIMEROEDGE_USERNAME);
   await page.locator('#PasswordTextBox').fill(PRIMEROEDGE_PASSWORD);
   await page.locator('#LoginButton').click();

@@ -1,0 +1,2300 @@
+[
+  {
+    "code": "POSDASHBRD",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Dashboard Display for POS  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "RPTPPES",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Display Enrollment Site for Patron Participation, Edit Check, Activity reports.  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "CNSRVINACT",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Record Sales - Serve Inactive Students  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "MAXAMTRC",
+    "kind": "text",
+    "value": "20",
+    "options": [],
+    "desc": "Reconciliation - Maximum Over/Under Amount Allowed  (History)"
+  },
+  {
+    "code": "SAVEDEFBAL",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Save as Default Balance allowed  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "ATTFACTOR",
+    "kind": "text",
+    "value": "Monthly by school",
+    "options": [],
+    "desc": "Attendance Factor Applied:  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Monthly by school",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "UPHMRM",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Update Homeroom When Not Imported  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "ENRMNTNO",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Record Sales - Accept Enrollment Numbers  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "PMTBTMAX",
+    "kind": "text",
+    "value": "25",
+    "options": [],
+    "desc": "Record Sales - Batch Limit for Quick Entry  (History)"
+  },
+  {
+    "code": "BONUSTHRES",
+    "kind": "text",
+    "value": "3.50",
+    "options": [],
+    "desc": "Bonus - Minimum Qualifying Payment Amount  (History)"
+  },
+  {
+    "code": "USEBONPCNT",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Bonus - Use Percentage (No = Flat Dollar Amount)  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "BONUSPCENT",
+    "kind": "text",
+    "value": "20",
+    "options": [],
+    "desc": "Bonus - Percentage of Payment  (History)"
+  },
+  {
+    "code": "BONUSAMT",
+    "kind": "text",
+    "value": "20",
+    "options": [],
+    "desc": "Bonus - Dollar Amount  (History)"
+  },
+  {
+    "code": "ROLALTSALE",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Display Alternate Meal Counts on Activity Reports  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "ADDBANKBAG",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Deposit Slips - Display additional field for Bank Bag  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "ADDEXTDEP",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Deposit Slips - Display additional field for External Bank Deposit Numbers  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "MAXAMTAURC",
+    "kind": "text",
+    "value": "2.50",
+    "options": [],
+    "desc": "Reconciliation - Maximum Over/Under Amount Allowed for Auto Reconcile  (History)"
+  },
+  {
+    "code": "REMINDBAL",
+    "kind": "text",
+    "value": "5.00",
+    "options": [],
+    "desc": "Reminders - Default \"Balance Below\" Value  (History)"
+  },
+  {
+    "code": "BANKACTNO",
+    "kind": "text",
+    "value": "12345678",
+    "options": [],
+    "desc": "SFA - Bank Account Number (Displayed on Deposit Slip)  (History)"
+  },
+  {
+    "code": "BANKROUTNO",
+    "kind": "text",
+    "value": "911111111",
+    "options": [],
+    "desc": "SFA - Bank Routing Number (Displayed on Deposit Slip)  (History)"
+  },
+  {
+    "code": "CHRGNCEP",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Charge Non-CEP Students at CEP Sites  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "ENBVENDINT",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Enable VendNovation vending interface  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "MULTISALES",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Enable Multiple Meals  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "RCDSDRS",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Record Sales - Date Range for Summary  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "MAXAMTDS",
+    "kind": "text",
+    "value": "0.01",
+    "options": [],
+    "desc": "Deposit - Maximum Over/Under Amount Allowed  (History)"
+  },
+  {
+    "code": "ALSMPTENRL",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Allow serving meals prior to enrollment?  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "SEPCLSITE",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Separate charge limits by site  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "SINEXPFMT",
+    "kind": "text",
+    "value": "Value Not Set",
+    "options": [],
+    "desc": "Export - Format  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Value Not Set",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "SIDANEXPL1",
+    "kind": "text",
+    "value": "Cybersoft support",
+    "options": [],
+    "desc": "Export - Dantom Export Line1  (History)"
+  },
+  {
+    "code": "SIDANEXPL2",
+    "kind": "text",
+    "value": "866 442 6030",
+    "options": [],
+    "desc": "Export - Dantom Export Line2  (History)"
+  },
+  {
+    "code": "BILLCONAME",
+    "kind": "text",
+    "value": "EMPTY",
+    "options": [],
+    "desc": "Billing Contact - Name  (History)"
+  },
+  {
+    "code": "BILCOPHONE",
+    "kind": "text",
+    "value": "EMPTY",
+    "options": [],
+    "desc": "Billing Contact - Phone Number  (History)"
+  },
+  {
+    "code": "BILCOEMAIL",
+    "kind": "text",
+    "value": "EMPTY",
+    "options": [],
+    "desc": "Billing Contact - Email Address  (History)"
+  },
+  {
+    "code": "STDIACLEN",
+    "kind": "text",
+    "value": "90",
+    "options": [],
+    "desc": "Default \"Inactive Length\" Value (in Days)  (History)"
+  },
+  {
+    "code": "INVAMTDUE",
+    "kind": "text",
+    "value": "2",
+    "options": [],
+    "desc": "Default \"Outstanding Amount\" Value  (History)"
+  },
+  {
+    "code": "INVCRAMT",
+    "kind": "text",
+    "value": "4",
+    "options": [],
+    "desc": "Default \"Credit Amount\" Value  (History)"
+  },
+  {
+    "code": "INVDUEDATE",
+    "kind": "text",
+    "value": "10",
+    "options": [],
+    "desc": "Days After Bill Date when Payment is Due  (History)"
+  },
+  {
+    "code": "REMLETDAYS",
+    "kind": "text",
+    "value": "5",
+    "options": [],
+    "desc": "Days After Due Date when Bill Qualifies for Reminder  (History)"
+  },
+  {
+    "code": "INVOICDATE",
+    "kind": "text",
+    "value": "5",
+    "options": [],
+    "desc": "Days Between Generation Date and Date Printed on Bill  (History)"
+  },
+  {
+    "code": "REMAMTDUE",
+    "kind": "text",
+    "value": "20",
+    "options": [],
+    "desc": "View Bills - Default Outstanding Amount  (History)"
+  },
+  {
+    "code": "ADJTRANDAT",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Use Adjustment Date as Transaction Date for Adjustments (No = Original Date)  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "FSPRVD",
+    "kind": "text",
+    "value": "N/A",
+    "options": [],
+    "desc": "Food Service Management Company (FSMC)  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "N/A",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "MPLHFTHRS",
+    "kind": "text",
+    "value": "8",
+    "options": [],
+    "desc": "Meals per Labor Hour - Full Time Hours per Day  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "8",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "FSTDYSVR",
+    "kind": "text",
+    "value": "2013-07-01",
+    "options": [],
+    "desc": "First Day of Serving  (History) | Open the calendar popup. | Open the calendar popup. | Title and navigation\n\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\t\tTitle and navigation\n\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\n\t\n\t\t<<<June 2026><< | << | < | June 2026 | > | << | June 2026\n\t\n\t\t\n\t\t\tSMTWTFS\n\t\t\n\t\n\t\t\n\t\t\t31123456\n\t\t\n\t\t\t78910111213\n\t\t\n\t\t\t14151617181920\n\t\t\n\t\t\t21222324252627\n\t\t\n\t\t\t2829301234\n\t\t\n\t\t\t567891011 | 31 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "7/1/2013",
+    "options": [],
+    "desc": "Open the calendar popup. | Title and navigation\n\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\t\tTitle and navigation\n\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\n\t\n\t\t<<<June 2026><< | << | < | June 2026 | > | << | June 2026\n\t\n\t\t\n\t\t\tSMTWTFS\n\t\t\n\t\n\t\t\n\t\t\t31123456\n\t\t\n\t\t\t78910111213\n\t\t\n\t\t\t14151617181920\n\t\t\n\t\t\t21222324252627\n\t\t\n\t\t\t2829301234\n\t\t\n\t\t\t567891011 | 31 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11"
+  },
+  {
+    "code": "FSTOPNHSE",
+    "kind": "text",
+    "value": "2013-07-01",
+    "options": [],
+    "desc": "First Open House  (History) | Open the calendar popup. | Open the calendar popup. | Title and navigation\n\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\t\tTitle and navigation\n\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\n\t\n\t\t<<<June 2026><< | << | < | June 2026 | > | << | June 2026\n\t\n\t\t\n\t\t\tSMTWTFS\n\t\t\n\t\n\t\t\n\t\t\t31123456\n\t\t\n\t\t\t78910111213\n\t\t\n\t\t\t14151617181920\n\t\t\n\t\t\t21222324252627\n\t\t\n\t\t\t2829301234\n\t\t\n\t\t\t567891011 | 31 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "7/1/2013",
+    "options": [],
+    "desc": "Open the calendar popup. | Title and navigation\n\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\t\tTitle and navigation\n\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\n\t\n\t\t<<<June 2026><< | << | < | June 2026 | > | << | June 2026\n\t\n\t\t\n\t\t\tSMTWTFS\n\t\t\n\t\n\t\t\n\t\t\t31123456\n\t\t\n\t\t\t78910111213\n\t\t\n\t\t\t14151617181920\n\t\t\n\t\t\t21222324252627\n\t\t\n\t\t\t2829301234\n\t\t\n\t\t\t567891011 | 31 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11"
+  },
+  {
+    "code": "FSTONLAPP",
+    "kind": "text",
+    "value": "2013-07-01",
+    "options": [],
+    "desc": "First Online Application   (History) | Open the calendar popup. | Open the calendar popup. | Title and navigation\n\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\t\tTitle and navigation\n\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\n\t\n\t\t<<<June 2026><< | << | < | June 2026 | > | << | June 2026\n\t\n\t\t\n\t\t\tSMTWTFS\n\t\t\n\t\n\t\t\n\t\t\t31123456\n\t\t\n\t\t\t78910111213\n\t\t\n\t\t\t14151617181920\n\t\t\n\t\t\t21222324252627\n\t\t\n\t\t\t2829301234\n\t\t\n\t\t\t567891011 | 31 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "7/1/2013",
+    "options": [],
+    "desc": "Open the calendar popup. | Title and navigation\n\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\t\tTitle and navigation\n\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\n\t\n\t\t<<<June 2026><< | << | < | June 2026 | > | << | June 2026\n\t\n\t\t\n\t\t\tSMTWTFS\n\t\t\n\t\n\t\t\n\t\t\t31123456\n\t\t\n\t\t\t78910111213\n\t\t\n\t\t\t14151617181920\n\t\t\n\t\t\t21222324252627\n\t\t\n\t\t\t2829301234\n\t\t\n\t\t\t567891011 | 31 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11"
+  },
+  {
+    "code": "BKCHKFEE",
+    "kind": "text",
+    "value": "0",
+    "options": [],
+    "desc": "Returned Check Fees Charged by Bank  (History)"
+  },
+  {
+    "code": "ISDCHKFEE",
+    "kind": "text",
+    "value": "0",
+    "options": [],
+    "desc": "Returned Check Fees Charged by ISD  (History)"
+  },
+  {
+    "code": "CREDCADPAY",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Payments - Accept Credit Cards  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "CREDCADAPI",
+    "kind": "text",
+    "value": "Square",
+    "options": [],
+    "desc": "Credit Card Gateway API  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Square",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "SQRREDURL",
+    "kind": "text",
+    "value": "https://qa.primeroedge.co/pos/square.aspx",
+    "options": [],
+    "desc": "Square Redirect Url  (History)"
+  },
+  {
+    "code": "RDAMETHODS",
+    "kind": "text",
+    "value": "Value Not Set",
+    "options": [],
+    "desc": "RDA Method  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Value Not Set",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "MAXPYMTAMT",
+    "kind": "text",
+    "value": "500.00",
+    "options": [],
+    "desc": "Payments - Maximum Amount  (History)"
+  },
+  {
+    "code": "BLOCKCHECK",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Central Office - Block Checks  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "HOMEROOM",
+    "kind": "text",
+    "value": "Homeroom Teacher",
+    "options": [],
+    "desc": "Homeroom Type  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Homeroom Teacher",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "IMPTYP",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Import Balance - One File for Entire SFA (No = Files for Each Site)  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "BALPER",
+    "kind": "text",
+    "value": "0.95",
+    "options": [],
+    "desc": "Import Balance - Required Percentage of Students in File to Complete Import  (History)"
+  },
+  {
+    "code": "SCHPREPAY",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "State Specific (WV) - Accept Payments at Sites  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "GENPOSINVC",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "State Specific (WV) - SFA Generates Bills  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "TEAADD1",
+    "kind": "text",
+    "value": "TEXAS EDUCATION AGENCY",
+    "options": [],
+    "desc": "State Specific (TX) - TRS - State Education Agency  (History)"
+  },
+  {
+    "code": "TRSADD1",
+    "kind": "text",
+    "value": "TEACHER RETIREMENT SYSTEM OF TEXAS",
+    "options": [],
+    "desc": "State Specific (TX) - TRS - Address line 1  (History)"
+  },
+  {
+    "code": "TRSADD2",
+    "kind": "text",
+    "value": "1000 Red River Street, Austin Texas 78701-2698",
+    "options": [],
+    "desc": "State Specific (TX) - TRS - Address line 2  (History)"
+  },
+  {
+    "code": "TRSADD3",
+    "kind": "text",
+    "value": "Telephone (512)397-6400 or 1-800-223-TRST(8778)",
+    "options": [],
+    "desc": "State Specific (TX) - TRS - Address line 3  (History)"
+  },
+  {
+    "code": "TRSNUMBER",
+    "kind": "text",
+    "value": "EMPTY",
+    "options": [],
+    "desc": "State Specific (TX) - TRS - District number  (History)"
+  },
+  {
+    "code": "TEALABCOST",
+    "kind": "text",
+    "value": "0.35",
+    "options": [],
+    "desc": "State Specific (TX) - TRS - Labor Cost Percentage (in decimals)  (History)"
+  },
+  {
+    "code": "TEARETIREA",
+    "kind": "text",
+    "value": "0.08",
+    "options": [],
+    "desc": "State Specific (TX) - TRS - Retirement Contribution Amount  (History)"
+  },
+  {
+    "code": "TEATRSCCA",
+    "kind": "text",
+    "value": "0.0125",
+    "options": [],
+    "desc": "State Specific (TX) - TRS - Care Contribution amount  (History)"
+  },
+  {
+    "code": "CTRLMPLH",
+    "kind": "text",
+    "value": "Labor Categories",
+    "options": [],
+    "desc": "MPLH - Use Labor Hour Categories or Actual Hours  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Labor Categories",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "MTBYPC",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Meal Type Selections by Program Configuration  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "EIGMEAL",
+    "kind": "text",
+    "value": "EIG Lunch",
+    "options": [],
+    "desc": "Oregon EIG Meal  (History)"
+  },
+  {
+    "code": "EIGBFMEAL",
+    "kind": "text",
+    "value": "EIG Breakfast",
+    "options": [],
+    "desc": "Oregon EIG Breakfast Meal  (History)"
+  },
+  {
+    "code": "EIGSTUPER",
+    "kind": "text",
+    "value": "300",
+    "options": [],
+    "desc": "State Specific (OR) - Eligible Students Paid Percentage  (History)"
+  },
+  {
+    "code": "EIGSTUFTR",
+    "kind": "text",
+    "value": "130",
+    "options": [],
+    "desc": "State Specific (OR) - Eligible Students Paid Factor  (History)"
+  },
+  {
+    "code": "SSOCEC",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "SSO Claim Enrollment Count  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "PRINCMSG",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Show Message when principal button is selected  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "RMUTCHARLT",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Charge Limit - Used Only for Reimbursable Meals  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "SERINACSTU",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Serve Inactive Students  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "SSABICS",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Show Select All button in Classroom sale  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "ENAFOFCD",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Enable Food & Face Detection  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "CACFPSUPR",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Enable CACFP Supper Meal Type for Supper.  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "ENABLELOG",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Enable logging in Expresspoint App.  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "SSOMEAL",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "SSO Mealtype for all transactions  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "SEPCHGLMT",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Separate Charge Limits for Meals and A La Carte  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "PRGCONFIG",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Display only meal types configured in Program Configuration in ExpressPoint  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "HIDECHECKS",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Allow modifying Checks and Cards when closing a session in ExpressPoint  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "HIDEBAL",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Hide student balance. If yes the balance is hidden.  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "DIAGEN",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Enable Diagnostic Information collection for ExpressPoint  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "DYNMENU",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Dynamic Menus and Itemized Meal Service  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "ACCEXPAPP",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Allow ExpressPoint App Access  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "BALCHK",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Check Server Balance For Every Transaction  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "ALNUMPIN",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Allow Alpha-Numeric pin input in ExpressPoint  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "ENBLCCTR",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Enable Credit Card Sales in ExpressPoint App.  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "PRACCDAYCT",
+    "kind": "text",
+    "value": "4",
+    "options": [],
+    "desc": "Prohibit Device Access When Days offline limit reached   (History)"
+  },
+  {
+    "code": "TEROFFA",
+    "kind": "text",
+    "value": "59",
+    "options": [],
+    "desc": "Consider Terminal Offline After X Minutes  (History)"
+  },
+  {
+    "code": "HIDELGBLTY",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Show same prices of menu items for all students  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "POSALTNTS",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Show Patron Alert  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "EXNEGBAL",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Deduct negative balance from change due.  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "PRICEMODE",
+    "kind": "text",
+    "value": "Site Type",
+    "options": [],
+    "desc": "Price According to Site Type or Grade Group  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Site Type",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "MULTIREAD",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Multi-Input Reader  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "PARTIALPAY",
+    "kind": "text",
+    "value": "Payment",
+    "options": [],
+    "desc": "Apply Balance or Payment to Sale first.  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Payment",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "HASPRINACT",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Show Principal Account Button On Accounts Page  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "TAXMEAL",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Tax - Apply to Adult Sales  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "TAXPERCENT",
+    "kind": "text",
+    "value": "10",
+    "options": [],
+    "desc": "Tax - Percentage  (History)"
+  },
+  {
+    "code": "POSCHKBUT",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Display Check Button on POS  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "PRNACCALL",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Principal Account - Used Only for Insufficient Funds  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "POSEXCTPIN",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Exact PIN Required (No = Possible Matches Displayed)  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "MEALFIRST",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Charge Meal First  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "BIRTHSH",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Show Birthday Information on Express Point  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "BABECL",
+    "kind": "text",
+    "value": "Decision to allow sale with user",
+    "options": [],
+    "desc": "Account Balance Below Charge Limit:  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Decision to allow sale with user",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "USEPPSORL",
+    "kind": "text",
+    "value": "Local",
+    "options": [],
+    "desc": "Use Patron Photos from Server or Local  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Local",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "TRASYNINT",
+    "kind": "text",
+    "value": "1min",
+    "options": [],
+    "desc": "Transaction Sync Interval  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "1min",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "PATSYNINT",
+    "kind": "text",
+    "value": "5min",
+    "options": [],
+    "desc": "Patron Sync Interval  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "5min",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "TERHBTINT",
+    "kind": "text",
+    "value": "30min",
+    "options": [],
+    "desc": "Terminal Heartbeat Interval  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "30min",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "PREVACINT",
+    "kind": "text",
+    "value": "1min",
+    "options": [],
+    "desc": "Previous Sales & Account Balance Sync Interval  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "1min",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "TRASTAINT",
+    "kind": "text",
+    "value": "2min",
+    "options": [],
+    "desc": "Transaction Status Update Interval  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "2min",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "ESRR",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Enable 2nd Receipt Requirement  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "SIDFIELD",
+    "kind": "text",
+    "value": "Student ID",
+    "options": [],
+    "desc": "Student - ID Field (SSN / Student ID)  (History)"
+  },
+  {
+    "code": "SIDLENGTH",
+    "kind": "text",
+    "value": "6",
+    "options": [],
+    "desc": "Student - Maximum Length of ID  (History)"
+  },
+  {
+    "code": "PREFNAME",
+    "kind": "text",
+    "value": "Preferred Name (Legal Name)",
+    "options": [],
+    "desc": "Enable Preferred Name:  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Preferred Name (Legal Name)",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "PINLENGTH",
+    "kind": "text",
+    "value": "4",
+    "options": [],
+    "desc": "PIN - Maximum Length (between 1-9)  (History)"
+  },
+  {
+    "code": "CVSSN",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Collect/View SSN  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "RVWRSN",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Show review reasons  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "PRINTAUTO",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Print Payment Receipts Automatically  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "STANEWSTUD",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Record New Students' Eligibility  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "STAFFPINTP",
+    "kind": "text",
+    "value": "Random Pin",
+    "options": [],
+    "desc": "Staff - PIN Type  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Random Pin",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "PINTYPE",
+    "kind": "text",
+    "value": "Random Pin",
+    "options": [],
+    "desc": "Student - PIN Type  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Random Pin",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "CONNTOSERV",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Check Server for Visiting Student Second Meals  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "SECONDMEAL",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Second Meal Check Before Finalizing Sale  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "WARNAMOUNT",
+    "kind": "text",
+    "value": "100.00",
+    "options": [],
+    "desc": "Alert - Payment Exceeds X Amount  (History)"
+  },
+  {
+    "code": "WRNTMDFSAM",
+    "kind": "text",
+    "value": "5",
+    "options": [],
+    "desc": "Alert - POS Terminal Time is X Minutes Different than Server Time  (History)"
+  },
+  {
+    "code": "READDELAY",
+    "kind": "text",
+    "value": "1000",
+    "options": [],
+    "desc": "Scans - Time (in minutes) allowed between scans to ignore re-read errors.  (History)"
+  },
+  {
+    "code": "BIMETUNSUP",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Biometric Devices Used on 64-Bit Machines  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "NXTSTUDENT",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Go to Next Student when Transaction is Complete  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "MEALCOMBO",
+    "kind": "text",
+    "value": "Nutrient Based",
+    "options": [],
+    "desc": "Meal Combo - Enabled  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Nutrient Based",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "MLCOMBOSTU",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Meal Combo - Students Only (No = All Patrons)  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "MNITMCT",
+    "kind": "text",
+    "value": "29",
+    "options": [],
+    "desc": "Category Button - Number of Menu Items to display in sub grid  (History)"
+  },
+  {
+    "code": "RECACHEDVC",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Enable automatic reloading of USB devices on POS.  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "CASHDRAWER",
+    "kind": "text",
+    "value": "POSIFLEX",
+    "options": [],
+    "desc": "Cash Drawer Type  (History)"
+  },
+  {
+    "code": "ALACASREST",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Enable Purchase Amount Restrictions  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "NOTIFY",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Show Sync Status Icon  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "ASSTURL",
+    "kind": "text",
+    "value": "http://help.primeroedge.com/",
+    "options": [],
+    "desc": "URL - Remote Assistance  (History)"
+  },
+  {
+    "code": "HRSINCSSOP",
+    "kind": "text",
+    "value": "1",
+    "options": [],
+    "desc": "Inactive Session Remains Open X Minutes Before Automatically Closed  (History)"
+  },
+  {
+    "code": "POSCONNECT",
+    "kind": "text",
+    "value": "5",
+    "options": [],
+    "desc": "Connection Timeout Length for POS Connection String (in seconds)  (History)"
+  },
+  {
+    "code": "MGRCONNECT",
+    "kind": "text",
+    "value": "5",
+    "options": [],
+    "desc": "Connection Timeout Length for Site Server Connection String (in seconds)  (History)"
+  },
+  {
+    "code": "CACFPVENNO",
+    "kind": "text",
+    "value": "EMPTY",
+    "options": [],
+    "desc": "CE Vendor Number for CACFP claim export  (History)"
+  },
+  {
+    "code": "DAYATTEN",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Set to \"Yes\" to Add/Edit ADA ADP Report Enrollment Based off enrolled counts  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "RPTCLAIMH1",
+    "kind": "text",
+    "value": "West Virginia DoE",
+    "options": [],
+    "desc": "Claim - Report Header Line 1  (History)"
+  },
+  {
+    "code": "RPTCLAIMH2",
+    "kind": "text",
+    "value": "School Lunch and Child Nutrition Programs",
+    "options": [],
+    "desc": "Claim - Report Header Line 2  (History)"
+  },
+  {
+    "code": "RPTCLAIMH3",
+    "kind": "text",
+    "value": "Reimbursement Claim for School Lunch and Breakfast Programs",
+    "options": [],
+    "desc": "Claim - Report Header Line 3  (History)"
+  },
+  {
+    "code": "ALLSCHMEAL",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Claim - Meals Claimed at Enrollment Site (No = Claimed at Serving Site)  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "CNIPSID",
+    "kind": "text",
+    "value": "EMPTY",
+    "options": [],
+    "desc": "State Specific (CA) - CNIPS System Generated Sponsor Number  (History)"
+  },
+  {
+    "code": "RMCLMD",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Reimbursement Claim by Area (No = Claim by SFA)  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "CALFRAC",
+    "kind": "text",
+    "value": "Average",
+    "options": [],
+    "desc": "Calculation Method for Free and Reduced Enrollment Counts on Claims  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Average",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "CACFPCIL",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Add Cash in Lieu to CACFP rate for Lunch and Supper  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "SSOSFSP",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Use SFSP Rates for SSO Claims  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "AUTHMETH",
+    "kind": "text",
+    "value": "Student ID/PIN",
+    "options": [],
+    "desc": "Authentication Method  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Student ID/PIN",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "SERVEMLBY",
+    "kind": "text",
+    "value": "Meal Timing",
+    "options": [],
+    "desc": "Serve Meal By  (History) | select | select"
+  },
+  {
+    "code": "",
+    "kind": "text",
+    "value": "Meal Timing",
+    "options": [],
+    "desc": "select"
+  },
+  {
+    "code": "DISPVENBAL",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Display patron balance after pin entry?  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "SHOWVNACP",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Show Actual Price  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "VNASEMEAL",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Allow 2nd Meals  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "Yes",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "VSELLALANO",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "Sell meals as a la carte on Non-Operating Days  (History) | Yes\tNo | Yes | No"
+  },
+  {
+    "code": "Yes",
+    "kind": "radio",
+    "value": "No",
+    "options": [
+      "Yes",
+      "No"
+    ],
+    "desc": "No"
+  },
+  {
+    "code": "MAXVEND",
+    "kind": "text",
+    "value": "9999",
+    "options": [],
+    "desc": "Maximum number of transactions per person per day.  (History)"
+  }
+]

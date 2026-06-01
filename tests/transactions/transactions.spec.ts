@@ -4,7 +4,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { loginToExpressPoint, closeExpressPoint } from '../../utils/helpers';
 import { WarningDialog } from '../../utils/dialogs';
-import { ensureMealTypeSelected } from '../../utils/serving';
+import { ensureMealTypeSelected, dismissOpenPopovers } from '../../utils/serving';
 
 const PATRON_ID = '1337';
 const PATRON_FIRST_NAME = 'Sabih';
@@ -562,7 +562,13 @@ async function createPatronSale(page: Page, patronId: string = PATRON_ID): Promi
   const anyMeal = page.locator('ion-button').filter({ hasText: /Meal/i }).first();
   const mealTarget = (await lunchMeal.isVisible({ timeout: 2_000 }).catch(() => false)) ? lunchMeal : anyMeal;
   await expect(mealTarget).toBeVisible({ timeout: 10_000 });
-  await mealTarget.click();
+  // Clear any stray popover (e.g. the user/profile "user_ppup" overlay) that
+  // intercepts pointer events and makes this click silently time out.
+  await dismissOpenPopovers(page);
+  // Bound the click: actionTimeout is 0 (wait forever) in config, so a leftover
+  // overlay covering this button would stall until the test's hard timeout
+  // instead of failing fast.
+  await mealTarget.click({ timeout: 15_000 });
   await page.locator('ion-alert button, .alert-button')
     .filter({ hasText: /^yes$/i }).first().click({ timeout: 3_000 }).catch(() => {});
 

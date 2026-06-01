@@ -107,6 +107,7 @@ class WebhookReporter implements Reporter {
     const skipped = skippedTests.length;
     const total = this.tests.length;
     const passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
+    const failRate = total > 0 ? Math.round((failed / total) * 100) : 0;
     const duration = formatDuration(Date.now() - this.startTime);
 
     // Pad labels so colons line up; right-align numbers in a 2-char field.
@@ -117,11 +118,11 @@ class WebhookReporter implements Reporter {
       uniqueSpecTitles(tests).map(title => `  • ${title}`).join('\n');
 
     const message = this.rerunMode
-      ? this.buildRerunMessage({ reran: total, stillFailing: failed, failedTests, duration, padLabel, padNum, formatTestLines })
+      ? this.buildRerunMessage({ reran: total, stillFailing: failed, failedTests, padLabel, padNum, formatTestLines })
       : (() => {
           const statLines = [
             `✅ ${padLabel('Passed')} ${padNum(passed)} (${passRate}%)`,
-            `❌ ${padLabel('Failed')} ${padNum(failed)}`,
+            `❌ ${padLabel('Failed')} ${padNum(failed)} (${failRate}%)`,
             skipped > 0 ? `⏸ ${padLabel('Skipped')} ${padNum(skipped)}` : null,
             `📊 ${padLabel('Total')} ${padNum(total)}`,
             `⏱ ${padLabel('Duration')} ${duration}`,
@@ -157,30 +158,31 @@ class WebhookReporter implements Reporter {
     reran: number;
     stillFailing: number;
     failedTests: TestRecord[];
-    duration: string;
     padLabel: (label: string) => string;
     padNum: (n: number) => string;
     formatTestLines: (tests: TestRecord[]) => string;
   }): { title: string } {
-    const { reran, stillFailing, failedTests, duration, padLabel, padNum, formatTestLines } = args;
+    const { reran, stillFailing, failedTests, padLabel, padNum, formatTestLines } = args;
     const recovered = reran - stillFailing;
+    const recoveredRate = reran > 0 ? Math.round((recovered / reran) * 100) : 0;
+    const stillFailRate = reran > 0 ? Math.round((stillFailing / reran) * 100) : 0;
     // Fall back to the rerun subset total if no baseline was provided.
     const mergedTotal = this.baselineTotal > 0 ? this.baselineTotal : reran;
     const mergedFailed = stillFailing;
     const mergedPassed = mergedTotal - mergedFailed;
     const passRate = mergedTotal > 0 ? Math.round((mergedPassed / mergedTotal) * 100) : 0;
+    const failRate = mergedTotal > 0 ? Math.round((mergedFailed / mergedTotal) * 100) : 0;
 
     const rerunLines = [
-      `🔁 ${padLabel('Re-ran')} ${padNum(reran)}`,
-      `✅ ${padLabel('Recovered')} ${padNum(recovered)}`,
-      `❌ ${padLabel('Still')} ${padNum(stillFailing)}`,
+      `Re-ran ${reran} failed test(s):`,
+      `✅ ${padLabel('Passed')} ${padNum(recovered)} (${recoveredRate}%)`,
+      `❌ ${padLabel('Failed')} ${padNum(stillFailing)} (${stillFailRate}%)`,
     ];
 
     const totalLines = [
       `✅ ${padLabel('Passed')} ${padNum(mergedPassed)} (${passRate}%)`,
-      `❌ ${padLabel('Failed')} ${padNum(mergedFailed)}`,
+      `❌ ${padLabel('Failed')} ${padNum(mergedFailed)} (${failRate}%)`,
       `📊 ${padLabel('Total')} ${padNum(mergedTotal)}`,
-      `⏱ ${padLabel('Duration')} ${duration}`,
     ];
 
     const detailBlocks = stillFailing > 0
@@ -191,9 +193,10 @@ class WebhookReporter implements Reporter {
       title: [
         'ExpressPoint Regression — previously failed test(s) re-run. See updated results below.',
         '',
+        'Re-run:',
         ...rerunLines,
         '',
-        'Updated suite totals:',
+        'Updated totals:',
         ...totalLines,
         ...detailBlocks,
       ].join('\n'),

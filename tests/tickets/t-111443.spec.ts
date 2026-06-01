@@ -101,6 +101,14 @@ async function openServiceWithZeroBalance(window: Page): Promise<void> {
   await ensureServiceClosed(window).catch(() => {});
   await WarningDialog.dismiss(window, 3_000);
 
+  // Offline mode shows a "Checking Sessions..." status modal while EP tries to
+  // reconcile session state against the (unreachable) server. It overlays the
+  // dashboard and intercepts pointer events on the Open Service item until the
+  // check completes — wait for it to clear before clicking.
+  await window.locator('ion-modal')
+    .filter({ hasText: /Checking Sessions/i }).first()
+    .waitFor({ state: 'hidden', timeout: 90_000 }).catch(() => {});
+
   await window.locator('ion-item[detail]').filter({ hasText: /^Open Service$/i }).first()
     .click({ timeout: 15_000 });
   await WarningDialog.dismiss(window, 5_000);
@@ -121,11 +129,44 @@ function dollarsToCentsDigits(amount: number): string[] {
 }
 
 async function navigateToPayments(window: Page): Promise<void> {
-  await clickMenuItem(window, /^Payments$/i);
-  await expect(
-    window.locator('ion-segment-button, ion-item, ion-tab-button')
-      .filter({ hasText: /\b(PIN|Patron\s*ID)\b/i }).first(),
-  ).toBeVisible({ timeout: 20_000 });
+  // Let the post-open-service transition settle; offline mode renders slower.
+  await waitForLoadingOverlay(window);
+  await window.waitForTimeout(1_000);
+  await WarningDialog.dismiss(window, 3_000);
+
+  // In the current build, opening a service drops you straight onto the POS
+  // serving screen — which already exposes the PATRON ID / LOOKUP segments and
+  // the "Enter an ID" keypad. There is NO separate "Payments" menu item in this
+  // context (the hamburger only has Close Service, Transactions, Bulk Sales,
+  // etc.), so if the patron-entry segment is already present we're done.
+  const patronSegment = window.locator('ion-segment-button, ion-item, ion-tab-button')
+    .filter({ hasText: /\b(PIN|Patron\s*ID)\b/i }).first();
+  if (await patronSegment.isVisible({ timeout: 8_000 }).catch(() => false)) {
+    return;
+  }
+
+  // Legacy/dashboard fallback: if we landed on the dashboard instead, use the
+  // "Payments" tile (or the hamburger side menu) to reach the serving screen.
+  const dashboardPayments = window.locator('ion-item[detail]').filter({ hasText: /^Payments$/i }).first();
+  if (await dashboardPayments.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await dashboardPayments.click();
+  } else {
+    await clickHamburger(window);
+    await window.waitForTimeout(400);
+    await window.locator('ion-menu ion-item, ion-item').filter({ hasText: /^Payments$/i }).first()
+      .click({ timeout: 10_000 });
+  }
+  await WarningDialog.dismiss(window, 5_000);
+  await waitForLoadingOverlay(window);
+
+  // Close any open side menu so the Payments segments aren't covered.
+  await window.evaluate(async () => {
+    const menu = document.querySelector('ion-menu') as any;
+    if (menu?.close) await Promise.race([menu.close(), new Promise(r => setTimeout(r, 1_000))]);
+  }).catch(() => {});
+  await window.keyboard.press('Escape').catch(() => {});
+
+  await expect(patronSegment).toBeVisible({ timeout: 20_000 });
 }
 
 async function searchPatron(window: Page, id: string): Promise<void> {
@@ -202,12 +243,26 @@ async function makeCashPayment(window: Page, amount: number): Promise<void> {
     await window.waitForTimeout(300);
   }
 
-  // Type cents-style: $50.00 → keys "5000".
+  // ── TEMP DIAGNOSTIC ────────────────────────────────────────────────────
+  await window.screenshot({ path: 'test-results/_diag-before-digits.png' }).catch(() => {});
+  const kp = await window.evaluate(() => {
+    const vis = (el: Element) => !!((el as HTMLElement).offsetWidth || (el as HTMLElement).offsetHeight);
+    const ones = Array.from(document.querySelectorAll('ion-button')).filter(b => /^\s*1\s*$/.test((b.textContent || '').trim()));
+    const tabs = Array.from(document.querySelectorAll('ion-segment-button, ion-tab-button')).filter(vis).map(t => (t.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 20));
+    const addFunds = Array.from(document.querySelectorAll('ion-button, button')).some(b => /^Add Funds$/i.test((b.textContent || '').trim()) && vis(b));
+    return { ones1: ones.length, ones1visible: ones.filter(vis).length, visibleTabs: tabs, addFundsVisible: addFunds };
+  }).catch(e => ({ err: String(e) }));
+  console.log('DIAG makeCashPayment keypad state:', JSON.stringify(kp));
+  // ───────────────────────────────────────────────────────────────────────
+
+  // Type cents-style: $50.00 → keys "5000". Scope to VISIBLE digit buttons —
+  // the serving screen's patron-ID keypad stays in the DOM (hidden) behind the
+  // payment form, so a plain .first() can resolve to an invisible button.
   for (const digit of dollarsToCentsDigits(amount)) {
-    await window.locator('ion-button')
+    await window.locator('ion-button:visible')
       .filter({ hasText: new RegExp(`^\\s*${digit}\\s*$`) })
       .first()
-      .click({ force: true, timeout: 5_000 });
+      .click({ timeout: 5_000 });
     await window.waitForTimeout(120);
   }
 

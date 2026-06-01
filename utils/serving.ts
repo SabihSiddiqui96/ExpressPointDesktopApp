@@ -7,6 +7,33 @@ async function waitForLoadingOverlay(window: Page): Promise<void> {
 const MEAL_ITEM_TEXT = /Yemek|Chicken Burger|Breakfast Meal|Lunch Meal|Supper Meal|Dinner Meal|Snack Meal|^Extra$|^Fruit$|^Milk$|^Grain$|^Entree$|^Vegetable$|^Side$|^Dessert$|^Supper$/i;
 
 /**
+ * Dismiss any stray Ionic popover overlay (e.g. the user/profile "user_ppup"
+ * popover) that can sit on top of the serving grid and intercept pointer
+ * events — making meal-item clicks silently time out even though the button is
+ * visible, enabled and stable. WarningDialog.dismiss only handles ion-alert, so
+ * popovers need their own teardown: native dismiss(), then Escape as fallback.
+ * Returns true if a popover was present.
+ */
+export async function dismissOpenPopovers(window: Page): Promise<boolean> {
+  const present = await window.evaluate(() => {
+    const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    return Array.from(document.querySelectorAll<HTMLElement>('ion-popover')).some(visible);
+  }).catch(() => false);
+  if (!present) return false;
+
+  await window.evaluate(async () => {
+    const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    for (const pop of Array.from(document.querySelectorAll<HTMLElement>('ion-popover')).filter(visible)) {
+      const dismiss = (pop as any).dismiss;
+      if (typeof dismiss === 'function') { try { await dismiss.call(pop); } catch {} }
+    }
+  }).catch(() => {});
+  await window.keyboard.press('Escape').catch(() => {});
+  await window.waitForTimeout(400);
+  return true;
+}
+
+/**
  * If a "Meal Type" picker modal is currently on screen, dismiss it by clicking
  * its Close button. Returns true if a modal was dismissed. The modal can sit
  * on top of an already-populated serving grid, blocking subsequent input on
@@ -130,6 +157,21 @@ export async function ensureMealTypeSelected(window: Page): Promise<void> {
     if (!dismissed) break;
     await window.waitForTimeout(300);
   }
+
+  // Whatever happened above, make sure no Meal Type picker is left covering the
+  // grid. An open picker silently blocks the downstream meal-button click
+  // (which runs with the default actionTimeout of 0 = wait forever) and hangs
+  // the whole test until its hard timeout. If Lunch couldn't be selected
+  // (common after-hours, when EP defaults to another meal), closing the picker
+  // and proceeding on the active meal is acceptable — the callers' meal-button
+  // locator already falls back to any "<X> Meal" button.
+  for (let i = 0; i < 3; i++) {
+    if (!await dismissMealTypeModalIfOpen(window)) break;
+    await window.waitForTimeout(300);
+  }
+  // Also clear any stray popover (e.g. the user/profile "user_ppup" overlay)
+  // that would otherwise intercept the downstream meal-item click.
+  await dismissOpenPopovers(window);
 
   // Verify the serving grid is now populated.
   await window.locator('ion-button').filter({ hasText: MEAL_ITEM_TEXT }).first()
