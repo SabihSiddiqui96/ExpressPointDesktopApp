@@ -4,3 +4,5 @@ playwright-report/
 test-results/
 playwright-*.log
 *.png
+CLAUDE.md
+ExpressPoint-Automation-Flow.md
