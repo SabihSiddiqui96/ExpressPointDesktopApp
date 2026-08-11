@@ -269,28 +269,73 @@ async function pickAlternateSite(window: Page, currentSite: string): Promise<Swi
   }, currentSite);
 }
 
-async function searchAndSelectSite(window: Page, candidate: SwitchSiteCandidate): Promise<void> {
-  const searchBar = searchBarLocator(window);
-  await expect(searchBar).toBeVisible({ timeout: 10_000 });
-  await searchBar.click();
-  await searchBar.fill(candidate.searchTerm);
-  await window.waitForTimeout(500);
-
-  // List rows are bare divs/spans — pick the smallest visible element whose
-  // text exactly equals the candidate's "<id> - <name>" string and click it.
-  const clicked = await window.evaluate((target: string) => {
+/** Click the site row whose text is exactly "<id> - <name>". */
+async function clickSiteRow(window: Page, target: string): Promise<boolean> {
+  return window.evaluate((wanted: string) => {
     const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
     const matches = Array.from(document.querySelectorAll<HTMLElement>('body *'))
       .filter(visible)
-      .filter(el => (el.innerText ?? '').replace(/\s+/g, ' ').trim() === target);
+      .filter(el => (el.innerText ?? '').replace(/\s+/g, ' ').trim() === wanted);
     if (matches.length === 0) return false;
+    // Smallest match = the row itself rather than a container wrapping it.
     matches.sort((a, b) => {
       const ar = a.getBoundingClientRect(), br = b.getBoundingClientRect();
       return (ar.width * ar.height) - (br.width * br.height);
     });
     matches[0].click();
     return true;
-  }, candidate.name);
+  }, target);
+}
+
+async function searchAndSelectSite(window: Page, candidate: SwitchSiteCandidate): Promise<void> {
+  // pickAlternateSite only returns rows that are already visible, so try
+  // clicking straight away. Typing into the Ionic searchbar is the fragile part
+  // — it re-renders mid-action and the input events can dismiss the whole
+  // dialog — so only fall back to searching if the direct click misses.
+  if (await clickSiteRow(window, candidate.name)) return;
+
+  await expect(searchBarLocator(window)).toBeVisible({ timeout: 10_000 });
+
+  // The dialog re-renders its Ionic searchbar shortly after it appears, so a
+  // click/fill can land on a node that gets detached mid-action. Re-resolve the
+  // locator on each attempt and confirm the text actually landed.
+  // Playwright's fill() keeps losing the node to the re-render, so set the value
+  // in-page and fire the events Ionic listens for — the same approach the repo
+  // already uses for Ionic/Telerik controls elsewhere.
+  const readSearchValue = () => window.evaluate(() =>
+    document.querySelector<HTMLInputElement>('input.searchbar-input, input[placeholder*="Search" i]')?.value ?? '');
+
+  await expect(async () => {
+    const found = await window.evaluate((term: string) => {
+      const input = document.querySelector<HTMLInputElement>('input.searchbar-input, input[placeholder*="Search" i]');
+      if (!input) return false;
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+      setter?.call(input, term);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    }, candidate.searchTerm);
+    expect(found, 'Switch Sites search input should be present').toBe(true);
+    expect(await readSearchValue()).toBe(candidate.searchTerm);
+  }).toPass({ timeout: 20_000, intervals: [500, 1_000, 2_000] });
+
+  await window.waitForTimeout(500);
+
+  const clicked = await clickSiteRow(window, candidate.name);
+  if (!clicked) {
+    const rows = await window.evaluate(() => {
+      const visible = (el: HTMLElement) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+      const seen = new Set<string>();
+      for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
+        if (!visible(el)) continue;
+        const text = (el.innerText ?? '').replace(/\s+/g, ' ').trim();
+        if (!text || text.length > 120 || text.includes('\n')) continue;
+        seen.add(text);
+      }
+      return Array.from(seen);
+    }).catch(() => null);
+    console.log(`[switch-sites] wanted=${JSON.stringify(candidate.name)} searchTerm=${JSON.stringify(candidate.searchTerm)} visibleRows=${JSON.stringify(rows, null, 2)}`);
+  }
   expect(clicked, `Switch Sites row "${candidate.name}" should be clickable`).toBe(true);
 }
 

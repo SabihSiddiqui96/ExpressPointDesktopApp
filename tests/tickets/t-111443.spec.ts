@@ -105,9 +105,13 @@ async function openServiceWithZeroBalance(window: Page): Promise<void> {
   // reconcile session state against the (unreachable) server. It overlays the
   // dashboard and intercepts pointer events on the Open Service item until the
   // check completes — wait for it to clear before clicking.
-  await window.locator('ion-modal')
-    .filter({ hasText: /Checking Sessions/i }).first()
-    .waitFor({ state: 'hidden', timeout: 90_000 }).catch(() => {});
+  // NOTE: waiting for "hidden" alone is not enough — the modal is usually not in
+  // the DOM yet at this point, and waitFor('hidden') on a non-existent element
+  // resolves immediately. It then appears and swallows the click. So wait for it
+  // to show up first (it may legitimately never appear), then for it to clear.
+  const checkingSessions = window.locator('ion-modal').filter({ hasText: /Checking Sessions/i }).first();
+  await checkingSessions.waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
+  await checkingSessions.waitFor({ state: 'hidden', timeout: 90_000 }).catch(() => {});
 
   await window.locator('ion-item[detail]').filter({ hasText: /^Open Service$/i }).first()
     .click({ timeout: 15_000 });
@@ -225,10 +229,21 @@ async function makeCashPayment(window: Page, amount: number): Promise<void> {
   const tab = window.locator('ion-segment-button, ion-tab-button')
     .filter({ hasText: /\bCash\b/i }).first();
   if (!await tab.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    const addFunds = window.locator('ion-button, button').filter({ hasText: /^Add Funds$/i }).first();
-    if (await addFunds.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await addFunds.click();
+    // Ionic buttons don't reliably respond to Playwright's click here (the
+    // funding screen never opened and Add Funds stayed on screen), so click it
+    // in-page, then wait for the keypad itself rather than a fixed pause.
+    const opened = await window.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll<HTMLElement>('ion-button, button'))
+        .find(b => !!(b.offsetWidth || b.offsetHeight)
+          && /^Add Funds$/i.test((b.innerText || b.textContent || '').trim()));
+      if (!btn) return false;
+      btn.click();
+      return true;
+    });
+    if (opened) {
       await waitForLoadingOverlay(window);
+      await window.locator('ion-button:visible').filter({ hasText: /^\s*1\s*$/ }).first()
+        .waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
     }
   }
   if (await tab.isVisible({ timeout: 5_000 }).catch(() => false)) {

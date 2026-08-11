@@ -77,7 +77,23 @@ async function chooseFromDropdown(
     .then(() => true)
     .catch(() => false);
   if (!popoverOpened) {
-    console.log(await window.locator('ion-modal').first().innerText({ timeout: 2_000 }).catch(() => '<modal text unavailable>'));
+    // Dump the state that actually explains this failure: which segment tab is
+    // selected and which dropdown rows exist in scope. (A modal innerText dump
+    // is useless here — the bulk-sales form is not inside a modal.)
+    const state = await window.evaluate(() => {
+      const segments = Array.from(document.querySelectorAll('ion-segment-button')).map(el => ({
+        value: el.getAttribute('value'),
+        ariaSelected: el.getAttribute('aria-selected'),
+        className: el.className,
+        disabled: el.hasAttribute('disabled'),
+      }));
+      const modal = document.querySelector<HTMLElement>('ion-modal.show-modal, ion-modal[class*="show"]');
+      const scope: Element = modal ?? document.querySelector('app-classroom-sale') ?? document.body;
+      const rows = Array.from(scope.querySelectorAll<HTMLElement>('ion-list ion-item'))
+        .map(el => (el.textContent ?? '').replace(/\s+/g, ' ').trim());
+      return { scope: modal ? 'modal' : (document.querySelector('app-classroom-sale') ? 'app-classroom-sale' : 'body'), segments, rows };
+    }).catch(() => null);
+    console.log(`[chooseFromDropdown] state: ${JSON.stringify(state, null, 2)}`);
     throw new Error(`Dropdown did not open for label: ${labelContains}`);
   }
 
@@ -364,25 +380,90 @@ async function loadStudentsByHomeroom(
   await expect(firstStudentCard(window)).toBeVisible({ timeout: 15_000 });
 }
 
+/**
+ * Return to the selection form (segment tabs + Grade/Homeroom/Roster dropdowns).
+ * Loading students replaces that form with the student list, so after a completed
+ * flow the tabs are gone and a tab click silently does nothing. Cancel goes back.
+ * No-op when the form is already showing.
+ */
+async function ensureSelectionForm(window: Page): Promise<void> {
+  // Recording an ala carte sale can leave an ion-alert open; its backdrop
+  // intercepts every click, so dismiss it before touching anything else.
+  await WarningDialog.dismiss(window, 3_000);
+
+  const segment = window.locator('ion-segment-button').first();
+  if (await segment.isVisible({ timeout: 2_000 }).catch(() => false)) return;
+
+  // Cancel returns to the form, but when selections exist the app first asks
+  // "CONFIRM EXP05305: ... Are you sure you wish to cancel bulk sales entry?".
+  // That alert must be answered — its backdrop blocks every subsequent click.
+  await domClick(window, 'ion-button', 'cancel');
+
+  const confirmYes = window
+    .locator('ion-alert button, .alert-button')
+    .filter({ hasText: /^\s*Yes\s*$/i })
+    .first();
+  if (await confirmYes.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    // The alert re-renders as it settles, so a plain click can hit a detached
+    // node; fall back to an in-page click on the Yes button.
+    await confirmYes.click({ timeout: 5_000 }).catch(async () => {
+      await window.evaluate(() => {
+        const alert = document.querySelector('ion-alert');
+        const btn = Array.from(alert?.querySelectorAll<HTMLElement>('button, .alert-button') ?? [])
+          .find(b => /^\s*yes\s*$/i.test(b.textContent ?? ''));
+        btn?.click();
+      });
+    });
+  }
+
+  if (await segment.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true).catch(() => false)) return;
+
+  const state = await window.evaluate(() => ({
+    buttons: Array.from(document.querySelectorAll<HTMLElement>('ion-button'))
+      .map(el => (el.textContent ?? '').replace(/\s+/g, ' ').trim())
+      .filter(Boolean),
+    menuItems: Array.from(document.querySelectorAll<HTMLElement>('ion-item[detail]'))
+      .map(el => (el.textContent ?? '').replace(/\s+/g, ' ').trim()),
+    heading: (document.querySelector('ion-title, h1, h2')?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+    // The blocking overlay: what it says and which buttons it offers is the
+    // whole question — WarningDialog.dismiss does not recognise this one.
+    alerts: Array.from(document.querySelectorAll<HTMLElement>('ion-alert')).map(a => ({
+      id: a.id,
+      className: a.className,
+      text: (a.innerText ?? '').replace(/\s+/g, ' ').trim().slice(0, 300),
+      buttons: Array.from(a.querySelectorAll<HTMLElement>('button, .alert-button'))
+        .map(b => (b.textContent ?? '').trim()).filter(Boolean),
+    })),
+  })).catch(() => null);
+  throw new Error(`Could not return to the bulk-sales selection form. State: ${JSON.stringify(state)}`);
+}
+
 async function loadStudentsByRoster(
   window: Page,
   params: typeof ROSTER_PARAMS,
 ): Promise<void> {
   // Let the app settle after the previous flow before switching tabs
   await window.waitForTimeout(1_500);
+  await ensureSelectionForm(window);
 
   // Use evaluate-based click — Ionic segment buttons need it same as ion-button
   await domClick(window, 'ion-segment-button[value="by_specialroster"]');
   await window.waitForTimeout(800);
 
   // Verify the tab actually switched before choosing dropdowns
-  await expect(
-    window.locator('ion-segment-button[value="by_specialroster"]'),
-  ).toHaveAttribute('aria-selected', 'true', { timeout: 5_000 }).catch(async () => {
-    // Retry once if the first click didn't register
-    await domClick(window, 'ion-segment-button[value="by_specialroster"]');
-    await window.waitForTimeout(500);
-  });
+  // Ionic marks the active segment with the `segment-button-checked` class and
+  // does NOT set aria-selected on the host — asserting that attribute could
+  // never pass, and the old `.catch()` hid it, so the flow carried on regardless
+  // and failed three calls later with a misleading "Dropdown did not open".
+  const rosterTab = window.locator('ion-segment-button[value="by_specialroster"]');
+  await expect(rosterTab)
+    .toHaveClass(/segment-button-checked/, { timeout: 5_000 })
+    .catch(async () => {
+      // Retry once if the first click didn't register, then re-assert for real.
+      await domClick(window, 'ion-segment-button[value="by_specialroster"]');
+      await window.waitForTimeout(500);
+      await expect(rosterTab).toHaveClass(/segment-button-checked/, { timeout: 5_000 });
+    });
 
   await chooseFromDropdown(window, 'Roster', params.roster);
   await chooseFromDropdown(window, 'Meal Type', params.mealType);
