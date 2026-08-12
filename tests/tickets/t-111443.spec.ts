@@ -105,16 +105,20 @@ async function openServiceWithZeroBalance(window: Page): Promise<void> {
   // reconcile session state against the (unreachable) server. It overlays the
   // dashboard and intercepts pointer events on the Open Service item until the
   // check completes — wait for it to clear before clicking.
-  // NOTE: waiting for "hidden" alone is not enough — the modal is usually not in
-  // the DOM yet at this point, and waitFor('hidden') on a non-existent element
-  // resolves immediately. It then appears and swallows the click. So wait for it
-  // to show up first (it may legitimately never appear), then for it to clear.
+  // The "Checking Sessions..." modal can appear at ANY point during offline
+  // start-up, so no one-shot wait works: waitFor('hidden') passes instantly
+  // while the modal is not yet in the DOM, and waiting a fixed window for it to
+  // appear just loses the race when it shows up later. Instead keep retrying the
+  // click, clearing the modal whenever it happens to be up.
   const checkingSessions = window.locator('ion-modal').filter({ hasText: /Checking Sessions/i }).first();
-  await checkingSessions.waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
-  await checkingSessions.waitFor({ state: 'hidden', timeout: 90_000 }).catch(() => {});
+  const openServiceItem = window.locator('ion-item[detail]').filter({ hasText: /^Open Service$/i }).first();
 
-  await window.locator('ion-item[detail]').filter({ hasText: /^Open Service$/i }).first()
-    .click({ timeout: 15_000 });
+  await expect(async () => {
+    if (await checkingSessions.isVisible({ timeout: 500 }).catch(() => false)) {
+      await checkingSessions.waitFor({ state: 'hidden', timeout: 60_000 }).catch(() => {});
+    }
+    await openServiceItem.click({ timeout: 5_000 });
+  }).toPass({ timeout: 150_000, intervals: [1_000, 2_000, 3_000] });
   await WarningDialog.dismiss(window, 5_000);
   await expect(window.getByText(/Opening Balance/i).first()).toBeVisible({ timeout: 10_000 });
 
@@ -302,8 +306,32 @@ async function makeCashPayment(window: Page, amount: number): Promise<void> {
 // ─── Close Service ────────────────────────────────────────────────────────────
 
 async function navigateToCloseService(window: Page): Promise<void> {
-  await clickMenuItem(window, /^Close Service$/i);
-  await waitForText(window, /Close Service|Closing Balance/i, 20_000);
+  // Arrival must be judged by the footer button, not by text: the old
+  // waitForText(/Close Service|Closing Balance/i) also matched the menu item we
+  // had just clicked, so it "confirmed" navigation that never happened. Ionic
+  // also drops the menu click outright sometimes, so retry it in-page.
+  const footerBtn = window.locator('ion-button, button')
+    .filter({ hasText: /^\s*Close Service\s*$/i }).last();
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt === 0) {
+      await clickMenuItem(window, /^Close Service$/i);
+    } else {
+      await clickHamburger(window).catch(() => {});
+      await window.evaluate(() => {
+        const item = Array.from(document.querySelectorAll<HTMLElement>('ion-menu ion-item, ion-item[detail]'))
+          .find(el => /^\s*Close Service\s*$/i.test((el.innerText ?? '').replace(/\s+/g, ' ').trim()));
+        item?.click();
+      }).catch(() => {});
+      await WarningDialog.dismiss(window, 3_000);
+      await waitForLoadingOverlay(window);
+    }
+
+    if (await footerBtn.waitFor({ state: 'visible', timeout: 15_000 }).then(() => true).catch(() => false)) {
+      break;
+    }
+  }
+
   await WarningDialog.dismiss(window, 3_000);
   await waitForLoadingOverlay(window);
 }
@@ -316,6 +344,19 @@ async function clickCloseServiceFooterButton(window: Page): Promise<void> {
   // coord-based clicks, which were missing the button in offline mode.
   const btn = window.locator('ion-button, button')
     .filter({ hasText: /^\s*Close Service\s*$/i }).last();
+  if (!await btn.isVisible({ timeout: 15_000 }).catch(() => false)) {
+    const state = await window.evaluate(() => ({
+      buttons: Array.from(document.querySelectorAll<HTMLElement>('ion-button, button'))
+        .filter(b => !!(b.offsetWidth || b.offsetHeight))
+        .map(b => (b.innerText || b.textContent || '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean),
+      headings: Array.from(document.querySelectorAll<HTMLElement>('ion-title, h1, h2, ion-header'))
+        .map(h => (h.innerText ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 5),
+      overlays: Array.from(document.querySelectorAll<HTMLElement>('ion-modal, ion-alert, ion-loading'))
+        .map(o => `${o.tagName}:${o.className}:${(o.innerText ?? '').replace(/\s+/g, ' ').trim().slice(0, 80)}`),
+    })).catch(() => null);
+    console.log(`[close-service] state: ${JSON.stringify(state, null, 2)}`);
+  }
   await expect(btn, '"Close Service" footer button').toBeVisible({ timeout: 15_000 });
   await btn.scrollIntoViewIfNeeded().catch(() => {});
   await btn.click({ timeout: 15_000 });
