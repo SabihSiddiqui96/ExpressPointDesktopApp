@@ -28,7 +28,7 @@ const { execFileSync } = require('child_process');
 
 const SOURCE = path.resolve(__dirname, '..');
 const TARGET_REPO = 'C:\\Users\\sabih.siddiqui\\Desktop\\Automation\\Cybersoft.Platform';
-const PREFIX = 'ExpressPointDesktopApp';
+const PREFIX = 'Cybersoft.Platform.TestAutomation/ExpressPointDesktopApp';
 const BRANCH = 'AutomationProjects';
 const REMOTE_PATH =
   'dev.azure.com/Cybersoft-Technologies-Inc/Platform/_git/Cybersoft.Platform';
