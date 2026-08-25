@@ -121,9 +121,21 @@ if (currentBranch !== BRANCH) {
 // --- work out the file set -------------------------------------------------
 
 // Tracked files only: this is the gitignore filter that keeps .env out.
-const sourceFiles = git(SOURCE, ['ls-files'])
-  .split('\n')
-  .filter(Boolean);
+// Read the index with modes so gitlinks (mode 160000, i.e. submodules) can be
+// dropped — they are directories on disk, so copying them byte-for-byte throws
+// EISDIR, and a submodule pointer means nothing in a plain-folder mirror anyway.
+const sourceFiles = [];
+const submodules = [];
+for (const line of git(SOURCE, ['ls-files', '--stage']).split('\n')) {
+  if (!line.trim()) continue;
+  const mode = line.slice(0, 6);
+  const file = line.slice(line.indexOf('\t') + 1);
+  if (mode === '160000') submodules.push(file);
+  else sourceFiles.push(file);
+}
+if (submodules.length) {
+  console.log(`Skipping ${submodules.length} submodule(s): ${submodules.join(', ')}`);
+}
 
 const targetFiles = git(TARGET_REPO, ['ls-files', PREFIX])
   .split('\n')
