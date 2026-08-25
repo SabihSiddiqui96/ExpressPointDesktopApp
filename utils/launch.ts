@@ -4,8 +4,11 @@ import * as http from 'http';
 import * as path from 'path';
 import * as fs from 'fs';
 
-const APP_DIR  = 'C:\\Users\\Public\\Documents\\ExpressPoint\\resources\\app';
-const ELECTRON = path.join(__dirname, '../node_modules/electron/dist/electron.exe');
+// Launch the PACKAGED app, not the repo's electron binary. The app depends on
+// @electron/remote v2 (needs Electron >= 14); the repo ships Electron 11, under
+// which the renderer never paints and the only window left is the hidden
+// electron-browser-storage helper — the "white screen".
+const APP_EXE  = 'C:\\Users\\Public\\Documents\\ExpressPoint\\ExpressPoint.exe';
 const CDP_PORT = 9222;
 
 export interface ExpressPointHandle {
@@ -35,8 +38,7 @@ export async function launchExpressPoint(): Promise<ExpressPointHandle> {
     CashDrawer: cashDrawerStubDir,
   };
 
-  const proc = spawn(ELECTRON, [
-    APP_DIR,
+  const proc = spawn(APP_EXE, [
     `--remote-debugging-port=${CDP_PORT}`,
   ], { stdio: 'pipe', env });
 
@@ -49,16 +51,26 @@ export async function launchExpressPoint(): Promise<ExpressPointHandle> {
   const browser = await connectWithRetry(CDP_PORT, 5, 1500);
   const context = browser.contexts()[0];
 
-  const allPages = context.pages();
-  let window = allPages.find((p: Page) => p.url().includes('renderer') && !p.url().includes('electron-browser-storage'))
-    ?? allPages.find((p: Page) => !p.url().includes('electron-browser-storage'))
-    ?? allPages[0];
+  // Poll for the real renderer window. The hidden electron-browser-storage
+  // helper window opens first, so a fixed sleep can race and hand back the
+  // wrong page. Never fall back to allPages[0] — that IS the white screen.
+  const isAppWindow = (p: Page) =>
+    p.url().includes('/src/renderer/') && !p.url().includes('electron-browser-storage');
 
-  if (!window || window.url().includes('electron-browser-storage')) {
-    window = await context.waitForEvent('page', {
-      predicate: (p: Page) => !p.url().includes('electron-browser-storage'),
-      timeout: 15_000,
-    });
+  const deadline = Date.now() + 30_000;
+  let window: Page | undefined;
+  while (Date.now() < deadline) {
+    window = context.pages().find(isAppWindow);
+    if (window) break;
+    await sleep(500);
+  }
+
+  if (!window) {
+    const seen = context.pages().map((p: Page) => p.url()).join('\n  ');
+    throw new Error(
+      `ExpressPoint renderer window never appeared within 30s. Pages seen:\n  ${seen}\n` +
+      `(If the only page is electron-browser-storage/index.js, the app's main window failed to load.)`,
+    );
   }
 
   await window.waitForLoadState('domcontentloaded');

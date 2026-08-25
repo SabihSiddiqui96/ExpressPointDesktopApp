@@ -25,8 +25,21 @@ export class LoginPage {
   menuPayments       = () => this.page.locator('ion-item[detail]', { hasText: 'Payments' });
   menuDeviceInfo     = () => this.page.locator('ion-item[detail]', { hasText: 'Device Information' });
 
-  async clickPrimeroEdgeLogin() {
-    await this.primeroEdgeLoginBtn().click();
+  /**
+   * Click the landing-screen "Use PrimeroEdge Login" button IF it is present.
+   *
+   * As of ExpressPoint 6.4.0 (Angular 22) the login-method landing screen was
+   * removed — the app boots straight to the credential form. Older builds still
+   * show it, so this is a best-effort step rather than a hard requirement.
+   * Returns true if the landing screen was there and was clicked.
+   */
+  async clickPrimeroEdgeLogin(): Promise<boolean> {
+    try {
+      await this.primeroEdgeLoginBtn().click({ timeout: 5_000 });
+      return true;
+    } catch {
+      return false;   // 6.4.0+ — credential form is already on screen
+    }
   }
 
   async loginWithPrimeroEdge(username: string, password: string) {

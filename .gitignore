@@ -6,3 +6,5 @@ playwright-*.log
 *.png
 CLAUDE.md
 ExpressPoint-Automation-Flow.md
+.claude/
+.mcp.json
