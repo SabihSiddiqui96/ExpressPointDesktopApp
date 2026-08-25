@@ -198,7 +198,13 @@ for (const rel of sourceFiles) {
   fs.copyFileSync(path.join(SOURCE, rel), dest);
 }
 
-git(TARGET_REPO, ['add', '--all', PREFIX]);
+// --force is required, not sloppiness. This repo's .gitignore is itself one of
+// the copied files, so git re-applies it inside the mirror and refuses paths
+// that are legitimately tracked here — files added before a later ignore rule,
+// or force-added at the time. The source repo's tracked set is the authority on
+// what belongs in the mirror; nothing outside that set is ever copied, so there
+// is no risk of sweeping in build output or secrets.
+git(TARGET_REPO, ['add', '--all', '--force', PREFIX]);
 
 const staged = git(TARGET_REPO, ['diff', '--cached', '--name-only', PREFIX], true);
 if (!staged) {
